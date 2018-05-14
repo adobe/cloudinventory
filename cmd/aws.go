@@ -1,17 +1,3 @@
-// Copyright © 2018 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
@@ -31,13 +17,13 @@ var awsCmd = &cobra.Command{
 		path := cmd.Flag("path").Value.String()
 		filter := cmd.Flag("filter").Value.String()
 		if !validateAWSFilter(filter) {
-			fmt.Errorf("Invalid filter selected, please select a supported AWS service")
+			fmt.Printf("Invalid filter selected, please select a supported AWS service")
 			return
 		}
 
 		col, err := collector.NewAWSCollector()
 		if err != nil {
-			fmt.Errorf("Failed to create AWS collector: %v", err)
+			fmt.Printf("Failed to create AWS collector: %v\n", err)
 			return
 		}
 
@@ -46,15 +32,21 @@ var awsCmd = &cobra.Command{
 
 		switch filter {
 		case "ec2":
-			err = collectEC2(col, result)
+			err := collectEC2(col, result)
 			if err != nil {
 				return
 			}
 		case "rds":
-			fmt.Errorf("Not implemented yet")
-			return
+			err := collectRDS(col, result)
+			if err != nil {
+				return
+			}
 		default:
 			err := collectEC2(col, result)
+			if err != nil {
+				return
+			}
+			err = collectRDS(col, result)
 			if err != nil {
 				return
 			}
@@ -62,11 +54,11 @@ var awsCmd = &cobra.Command{
 		fmt.Printf("Dumping to %s", path)
 		jsonBytes, err := json.Marshal(result)
 		if err != nil {
-			fmt.Errorf("Error Marshalling JSON: %v", err)
+			fmt.Printf("Error Marshalling JSON: %v\n", err)
 		}
 		err = ioutil.WriteFile(path, jsonBytes, 0644)
 		if err != nil {
-			fmt.Errorf("Error writing file: %v", err)
+			fmt.Printf("Error writing file: %v\n", err)
 		}
 	},
 }
@@ -88,11 +80,22 @@ func validateAWSFilter(filter string) bool {
 func collectEC2(col collector.AWSCollector, result map[string]interface{}) error {
 	instances, err := col.CollectEC2()
 	if err != nil {
-		fmt.Errorf("Failed to gather EC2 Data: %v", err)
+		fmt.Printf("Failed to gather EC2 Data: %v\n", err)
 		return err
 	}
-	fmt.Println("Gathered %d EC2 Instances", len(instances))
+	fmt.Printf("Gathered EC2 Instances across %d regions\n", len(instances))
 	result["ec2"] = instances
+	return nil
+}
+
+func collectRDS(col collector.AWSCollector, result map[string]interface{}) error {
+	instances, err := col.CollectRDS()
+	if err != nil {
+		fmt.Printf("Failed to gather RDS Data: %v\n", err)
+		return err
+	}
+	fmt.Printf("Gathered RDS Instances across %d regions\n", len(instances))
+	result["rds"] = instances
 	return nil
 }
 
