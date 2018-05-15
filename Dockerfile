@@ -7,6 +7,7 @@ RUN     go get -d -v ./...
 RUN     go get -u golang.org/x/lint/golint
 ENV     CGO_ENABLED=0
 RUN     make all
+RUN     go build
 
 # Final Image
 FROM       alpine
