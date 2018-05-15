@@ -11,9 +11,9 @@ import (
 )
 
 // NewAWSCollector retuns an AWSCollector with initialized sessions
-func NewAWSCollector() (AWSCollector, error) {
+func NewAWSCollector(china bool) (AWSCollector, error) {
 	var col AWSCollector
-	err := col.initSessions()
+	err := col.initSessions(china)
 	if err != nil {
 		return col, err
 	}
@@ -29,8 +29,8 @@ type AWSCollector struct {
 	sessions map[string]*session.Session
 }
 
-func (col *AWSCollector) initSessions() error {
-	sessions, err := awslib.BuildSessions()
+func (col *AWSCollector) initSessions(china bool) error {
+	sessions, err := awslib.BuildSessions(china)
 	if err != nil {
 		return errors.New("Unable to build AWS Sessions")
 	}
