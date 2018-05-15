@@ -1,0 +1,15 @@
+sudo: required
+language: bash
+
+services:
+  - docker
+
+script:
+  - docker run --rm --privileged multiarch/qemu-user-static:register --reset
+  - make all
+  - make docker
+  - make docker-arm
+
+after_success:
+  - make docker-push
+  - make docker-push-arm
