@@ -8,7 +8,7 @@ RUN     go get -u golang.org/x/lint/golint
 ENV     CGO_ENABLED=0
 ENV     GOOS=linux
 ENV     GOARCH=arm
-RUN     make all
+RUN     go build
 
 # Final Image
 FROM       hypriot/rpi- alpine
