@@ -3,7 +3,11 @@ DOCKER_IMAGE_TAG     ?= master
 DOCKER_IMAGE_TAG_ARM ?= armhf
 
 
-all: test vet lint install
+all: get test vet lint install
+
+get:
+	@echo ">> Getting Dependencies"
+	@go get ./...
 build:
 	@echo ">> Running Build"
 	@go build ./...
