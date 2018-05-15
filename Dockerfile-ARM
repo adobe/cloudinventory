@@ -5,10 +5,12 @@ WORKDIR /go/src/github.com/tchaudhry91/cloudinventory
 COPY    . .
 RUN     go get -d -v ./...
 ENV     CGO_ENABLED=0
+ENV     GOOS=linux
+ENV     GOARCH=arm
 RUN     make all
 
 # Final Image
-FROM       alpine
+FROM       hypriot/rpi- alpine
 RUN        apk update & apk add --no-cache ca-certificates
 COPY       --from=BUILDER /go/src/github.com/tchaudhry91/cloudinventory/cloudinventory /bin/
 ENTRYPOINT [ "/bin/cloudinventory" ]

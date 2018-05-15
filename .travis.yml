@@ -6,7 +6,6 @@ services:
 
 script:
   - docker run --rm --privileged multiarch/qemu-user-static:register --reset
-  - make all
   - make docker
   - make docker-arm
 
