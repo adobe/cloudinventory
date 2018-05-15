@@ -10,12 +10,13 @@ import (
 func GetAllRegions(china bool) []string {
 	awsRegions := endpoints.AwsPartition().Regions()
 	var regions []string
-	for _, r := range awsRegions {
-		regions = append(regions, r.ID())
-	}
 	if china {
 		cnRegions := endpoints.AwsCnPartition().Regions()
 		for _, r := range cnRegions {
+			regions = append(regions, r.ID())
+		}
+	} else {
+		for _, r := range awsRegions {
 			regions = append(regions, r.ID())
 		}
 	}

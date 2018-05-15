@@ -102,6 +102,6 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 }
 
 func init() {
-	awsCmd.PersistentFlags().BoolVarP(&china, "include-china", "", false, "Include the China Partition")
+	awsCmd.PersistentFlags().BoolVarP(&china, "china", "", false, "Run for the China Partition")
 	dumpCmd.AddCommand(awsCmd)
 }
