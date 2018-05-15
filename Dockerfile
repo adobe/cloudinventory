@@ -4,6 +4,7 @@ RUN     mkdir -p /go/src/github.com/tchaudhry91/cloudinventory
 WORKDIR /go/src/github.com/tchaudhry91/cloudinventory
 COPY    . .
 RUN     go get -d -v ./...
+RUN     go get -u golang.org/x/lint/golint
 ENV     CGO_ENABLED=0
 RUN     make all
 
