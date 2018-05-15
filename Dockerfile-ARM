@@ -11,7 +11,7 @@ ENV     GOARCH=arm
 RUN     go build
 
 # Final Image
-FROM       hypriot/rpi- alpine
-RUN        apk update & apk add --no-cache ca-certificates
+FROM       hypriot/rpi-alpine
+RUN        apk update && apk add --no-cache ca-certificates
 COPY       --from=BUILDER /go/src/github.com/tchaudhry91/cloudinventory/cloudinventory /bin/
 ENTRYPOINT [ "/bin/cloudinventory" ]

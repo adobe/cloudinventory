@@ -10,6 +10,6 @@ RUN     make all
 
 # Final Image
 FROM       alpine
-RUN        apk update & apk add --no-cache ca-certificates
+RUN        apk update && apk add --no-cache ca-certificates
 COPY       --from=BUILDER /go/src/github.com/tchaudhry91/cloudinventory/cloudinventory /bin/
 ENTRYPOINT [ "/bin/cloudinventory" ]
