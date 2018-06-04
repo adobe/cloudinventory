@@ -19,7 +19,7 @@ build-main:
 install:
 	@echo ">> Building and Installing"
 	@go install
-	@echo "">> Done Install"
+	@echo ">> Done Install"
 
 test:
 	@echo ">> Running Tests"
