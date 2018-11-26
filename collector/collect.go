@@ -1,24 +1,26 @@
 package collector
 
 import (
-	"errors"
 	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/tchaudhry91/cloudinventory/awslib"
-	"sync"
 )
 
 // NewAWSCollector retuns an AWSCollector with initialized sessions
-func NewAWSCollector(china bool) (AWSCollector, error) {
+func NewAWSCollector(partition string) (AWSCollector, error) {
 	var col AWSCollector
-	err := col.initSessions(china)
+	regions := col.getRegions(partition)
+	err := col.initSessions(regions)
 	if err != nil {
 		return col, err
 	}
 	if !col.CheckCredentials() {
-		return col, errors.New("Error obtaining AWS Credentials.")
+		return col, fmt.Errorf("Error obtaining AWS Credentials")
 	}
 
 	return col, nil
@@ -29,10 +31,21 @@ type AWSCollector struct {
 	sessions map[string]*session.Session
 }
 
-func (col *AWSCollector) initSessions(china bool) error {
-	sessions, err := awslib.BuildSessions(china)
+func (col *AWSCollector) getRegions(partition string) []string {
+	var regions []string
+	switch part := strings.ToLower(partition); part {
+	case "china":
+		regions = awslib.GetAllChinaRegions()
+	case "default":
+		regions = awslib.GetAllRegions()
+	}
+	return regions
+}
+
+func (col *AWSCollector) initSessions(regions []string) error {
+	sessions, err := awslib.BuildSessions(regions)
 	if err != nil {
-		return errors.New("Unable to build AWS Sessions")
+		return fmt.Errorf("Unable to build AWS Sessions")
 	}
 	col.sessions = sessions
 	return nil
@@ -73,7 +86,7 @@ func (col AWSCollector) CollectEC2() (map[string][]*ec2.Instance, error) {
 			chunk, err := CollectEC2PerSession(sess)
 
 			if err != nil {
-				errChan <- errors.New(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
 				return
 			}
 
@@ -89,7 +102,7 @@ func (col AWSCollector) CollectEC2() (map[string][]*ec2.Instance, error) {
 	close(errChan)
 
 	if len(errChan) > 0 {
-		return nil, errors.New(fmt.Sprintf("Failed to gather EC2 Data: %v", <-errChan))
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather EC2 Data: %v", <-errChan))
 	}
 
 	for regionChunk := range instancesChan {
@@ -119,7 +132,7 @@ func (col AWSCollector) CollectRDS() (map[string][]*rds.DBInstance, error) {
 			chunk, err := CollectRDSPerSession(sess)
 
 			if err != nil {
-				errChan <- errors.New(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
 				return
 			}
 
@@ -135,7 +148,7 @@ func (col AWSCollector) CollectRDS() (map[string][]*rds.DBInstance, error) {
 	close(errChan)
 
 	if len(errChan) > 0 {
-		return nil, errors.New(fmt.Sprintf("Failed to gather RDS Data: %v", <-errChan))
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather RDS Data: %v", <-errChan))
 	}
 
 	for regionChunk := range instancesChan {

@@ -9,7 +9,7 @@ import (
 	"github.com/tchaudhry91/cloudinventory/collector"
 )
 
-var china bool
+var partition string
 
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
@@ -23,7 +23,7 @@ var awsCmd = &cobra.Command{
 			return
 		}
 
-		col, err := collector.NewAWSCollector(china)
+		col, err := collector.NewAWSCollector(partition)
 		if err != nil {
 			fmt.Printf("Failed to create AWS collector: %v\n", err)
 			return
@@ -102,6 +102,6 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 }
 
 func init() {
-	awsCmd.PersistentFlags().BoolVarP(&china, "china", "", false, "Run for the China Partition")
+	awsCmd.PersistentFlags().StringVarP(&partition, "partition", "", "default", "Which partition of AWS to run for default/china")
 	dumpCmd.AddCommand(awsCmd)
 }
