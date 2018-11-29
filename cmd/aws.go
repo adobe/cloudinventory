@@ -14,6 +14,7 @@ import (
 var partition string
 var ansibleinv string
 var ansibleEnable bool
+var ansiblePriv bool
 
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
@@ -69,7 +70,7 @@ var awsCmd = &cobra.Command{
 
 		if ansibleEnable {
 			fmt.Printf("Building Inventory for Ansible at: %s", ansibleinv)
-			ansinv, err := ansible.BuildEC2Inventory(result["ec2"].(map[string][]*ec2.Instance))
+			ansinv, err := ansible.BuildEC2Inventory(result["ec2"].(map[string][]*ec2.Instance), ansiblePriv)
 			if err != nil {
 				fmt.Printf("Error while building Ansible Inventory: %v\n", err)
 			}
@@ -121,5 +122,6 @@ func init() {
 	awsCmd.PersistentFlags().StringVarP(&partition, "partition", "", "default", "Which partition of AWS to run for default/china")
 	awsCmd.PersistentFlags().BoolVarP(&ansibleEnable, "ansible", "a", false, "Create a an ansible inventory as well (only for EC2)")
 	awsCmd.PersistentFlags().StringVarP(&ansibleinv, "ansible_inv", "", "ansible.inv", "File to create the EC2 ansible inventory in")
+	awsCmd.PersistentFlags().BoolVarP(&ansiblePriv, "ansible_private", "", false, "Create Ansible Inventory with private DNS instead of public")
 	dumpCmd.AddCommand(awsCmd)
 }
