@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/spf13/cobra"
+	"github.com/tchaudhry91/cloudinventory/ansible"
 	"github.com/tchaudhry91/cloudinventory/collector"
 )
 
 var partition string
+var ansibleinv string
+var ansibleEnable bool
 
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
@@ -53,7 +57,7 @@ var awsCmd = &cobra.Command{
 				return
 			}
 		}
-		fmt.Printf("Dumping to %s", path)
+		fmt.Printf("Dumping to %s\n", path)
 		jsonBytes, err := json.Marshal(result)
 		if err != nil {
 			fmt.Printf("Error Marshalling JSON: %v\n", err)
@@ -61,6 +65,18 @@ var awsCmd = &cobra.Command{
 		err = ioutil.WriteFile(path, jsonBytes, 0644)
 		if err != nil {
 			fmt.Printf("Error writing file: %v\n", err)
+		}
+
+		if ansibleEnable {
+			fmt.Printf("Building Inventory for Ansible at: %s", ansibleinv)
+			ansinv, err := ansible.BuildEC2Inventory(result["ec2"].(map[string][]*ec2.Instance))
+			if err != nil {
+				fmt.Printf("Error while building Ansible Inventory: %v\n", err)
+			}
+			err = ioutil.WriteFile(ansibleinv, []byte(ansinv), 0644)
+			if err != nil {
+				fmt.Printf("Error writing to Ansible Inventory file: %v\n", err)
+			}
 		}
 	},
 }
@@ -103,5 +119,7 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 
 func init() {
 	awsCmd.PersistentFlags().StringVarP(&partition, "partition", "", "default", "Which partition of AWS to run for default/china")
+	awsCmd.PersistentFlags().BoolVarP(&ansibleEnable, "ansible", "a", false, "Create a an ansible inventory as well (only for EC2)")
+	awsCmd.PersistentFlags().StringVarP(&ansibleinv, "ansible_inv", "", "ansible.inv", "File to create the EC2 ansible inventory in")
 	dumpCmd.AddCommand(awsCmd)
 }
