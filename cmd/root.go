@@ -11,6 +11,7 @@ var rootCmd = &cobra.Command{
 	Short: "Cloud Inventory is a wrapper around cloud provider SDKs to build a complete inventory for multiple services",
 }
 
+// Execute begins the root command for cloudinventory cli
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
