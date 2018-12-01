@@ -4,10 +4,17 @@ DOCKER_IMAGE_TAG_ARM ?= armhf
 
 
 all: mod-tidy test vet lint install
+mod: mod-tidy verify vendor
 
 mod-tidy:
 	@echo ">> Running go mod tidy"
 	@GO111MODULE=on go mod tidy
+vendor:
+	@echo ">> Running go mod vendor"
+	@GO111MODULE=on go mod vendor
+verify:
+	@echo ">> Running go mod verify"
+	@GO111MODULE=on go mod verify
 get:
 	@echo ">> Getting Dependencies"
 	@go get ./...
