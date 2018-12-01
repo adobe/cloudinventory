@@ -1,9 +1,9 @@
 # Builder
 FROM    golang:latest as BUILDER
 RUN     mkdir -p /go/src/github.com/tchaudhry91/cloudinventory
+ENV     GO111MODULE=on
 WORKDIR /go/src/github.com/tchaudhry91/cloudinventory
 COPY    . .
-RUN     go get -d -v ./...
 RUN     go get -u golang.org/x/lint/golint
 ENV     CGO_ENABLED=0
 ENV     GOOS=linux
