@@ -1,6 +1,7 @@
 package ansible
 
 import (
+	"strings"
 	"bytes"
 	"fmt"
 	"text/template"
@@ -70,6 +71,8 @@ func extractNamefromEC2Tags(i *ec2.Instance) (string, error) {
 			if name == "" {
 				continue
 			}
+			//Make sure name has no spaces
+			name = strings.Replace(name, " ", "", -1)
 			return name, nil
 		}
 	}
