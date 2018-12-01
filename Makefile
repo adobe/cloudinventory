@@ -61,4 +61,4 @@ docker-arm:
 
 docker-push-arm:
 	@docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
-      	@docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG_ARM)
+    @docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG_ARM)
