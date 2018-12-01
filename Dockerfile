@@ -5,7 +5,6 @@ ENV     GO111MODULE=on
 WORKDIR /go/src/github.com/tchaudhry91/cloudinventory
 COPY    . .
 ENV     CGO_ENABLED=0
-RUN     make all
 RUN     go build
 
 # Final Image

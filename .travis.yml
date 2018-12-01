@@ -1,11 +1,15 @@
 sudo: required
-language: bash
+language: go
+go:
+  - 1.11
 
 services:
   - docker
 
 script:
   - docker run --rm --privileged multiarch/qemu-user-static:register --reset
+  - get -u golang.org/x/lint/golint
+  - make all
   - make docker
   - make docker-arm
 
