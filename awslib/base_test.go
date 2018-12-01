@@ -33,3 +33,16 @@ func TestGetAllRegions(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildSessions tests if all the regions are presents and succesfully able to build sessions
+func TestBuildSessions(t *testing.T) {
+	regions := GetAllRegions()
+	sessions, err := BuildSessions(regions)
+	if err != nil {
+		t.Errorf("Could not build sessions because of: %v", err)
+	}
+	if len(sessions) != len(regions) {
+		t.Errorf("Unequal number of regions and sessions.\nRegions=%d\tSessions=%d", len(regions), len(sessions))
+
+	}
+}

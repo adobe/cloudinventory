@@ -1,6 +1,7 @@
 package awslib
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -36,6 +37,11 @@ func BuildSessions(regions []string) (map[string]*session.Session, error) {
 		})
 		if err != nil {
 			errMain = err
+		}
+		_, err = sess.Config.Credentials.Get()
+		if err != nil {
+			errMain = fmt.Errorf("Failed to get AWS Credentials")
+			break
 		}
 		sessions[region] = sess
 	}

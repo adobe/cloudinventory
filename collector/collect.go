@@ -45,7 +45,7 @@ func (col *AWSCollector) getRegions(partition string) []string {
 func (col *AWSCollector) initSessions(regions []string) error {
 	sessions, err := awslib.BuildSessions(regions)
 	if err != nil {
-		return fmt.Errorf("Unable to build AWS Sessions")
+		return fmt.Errorf("Unable to build AWS Sessions: %v", err)
 	}
 	col.sessions = sessions
 	return nil
@@ -54,10 +54,6 @@ func (col *AWSCollector) initSessions(regions []string) error {
 // CheckCredentials tests the proper availability of AWS Credentials in the environment
 func (col AWSCollector) CheckCredentials() bool {
 	for _, sess := range col.sessions {
-		_, err := sess.Config.Credentials.Get()
-		if err != nil {
-			return false
-		}
 		if sess.Config.Credentials.IsExpired() {
 			return false
 		}

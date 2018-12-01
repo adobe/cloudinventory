@@ -24,9 +24,13 @@ install:
 	@go install
 	@echo ">> Done Install"
 
+test-short:
+	@echo ">> Running Quick Tests"
+	@go test -short ./...
+
 test:
 	@echo ">> Running Tests"
-	@go test -cover ./...
+	@go test -cover -v ./...
 
 vet:
 	@echo ">> Running Vet"
