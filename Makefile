@@ -3,8 +3,11 @@ DOCKER_IMAGE_TAG     ?= master
 DOCKER_IMAGE_TAG_ARM ?= armhf
 
 
-all: get test vet lint install
+all: mod-tidy test vet lint install
 
+mod-tidy:
+	@echo ">> Running go mod tidy"
+	@GO111MODULE=on go mod tidy
 get:
 	@echo ">> Getting Dependencies"
 	@go get ./...
@@ -23,7 +26,7 @@ install:
 
 test:
 	@echo ">> Running Tests"
-	@go test -v ./...
+	@go test -cover ./...
 
 vet:
 	@echo ">> Running Vet"
@@ -31,7 +34,7 @@ vet:
 
 lint:
 	@echo ">> Running Lint"
-	@golint ./...
+	@go list ./... | grep -v vender/ | golint
 
 docker:
 	@echo ">> Building Docker Image"
