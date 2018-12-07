@@ -1,9 +1,9 @@
 package ansible
 
 import (
-	"strings"
 	"bytes"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/service/ec2"

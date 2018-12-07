@@ -34,7 +34,7 @@ func TestGetAllRegions(t *testing.T) {
 	}
 }
 
-// TestBuildSessions tests if all the regions are presents and succesfully able to build sessions
+// TestBuildSessions tests if all the regions are presents and successfully able to build sessions
 func TestBuildSessions(t *testing.T) {
 	regions := GetAllRegions()
 	sessions, err := BuildSessions(regions)

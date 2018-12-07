@@ -11,7 +11,7 @@ import (
 	"github.com/tchaudhry91/cloudinventory/awslib"
 )
 
-// NewAWSCollector retuns an AWSCollector with initialized sessions
+// NewAWSCollector returns an AWSCollector with initialized sessions
 func NewAWSCollector(partition string) (AWSCollector, error) {
 	var col AWSCollector
 	regions := col.getRegions(partition)
