@@ -26,10 +26,13 @@ func GetAllInstances(sess *session.Session) ([]*ec2.Instance, error) {
 		// Describe instances with no filters
 		result, err := ec2c.DescribeInstances(&input)
 		if err != nil {
-			if _, ok := err.(awserr.Error); ok {
-				// Retry with backoff
-				time.Sleep(b.Duration())
-				continue
+			if aerr, ok := err.(awserr.Error); ok {
+				// Retry with backoff if RateExceeded
+				if aerr.Code() == "RateExceeded" {
+					time.Sleep(b.Duration())
+					continue
+				}
+				return allInstances, aerr
 			}
 			return allInstances, err
 		}
