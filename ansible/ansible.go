@@ -60,6 +60,9 @@ func BuildEC2Inventory(ec2dump map[string][]*ec2.Instance, private bool) (string
 	}
 	var b bytes.Buffer
 	err = tmpl.Execute(&b, &dump)
+	if err != nil {
+		return "", fmt.Errorf("Error executing ansible template")
+	}
 	return b.String(), nil
 }
 
