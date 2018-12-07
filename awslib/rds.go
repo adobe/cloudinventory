@@ -43,7 +43,7 @@ func GetAllDBInstances(sess *session.Session) ([]*rds.DBInstance, error) {
 		allInstances = append(allInstances, result.DBInstances...)
 		if result.Marker == nil {
 			allInstancesDone = true
-			break
+			continue
 		}
 		input.SetMarker(*result.Marker)
 	}

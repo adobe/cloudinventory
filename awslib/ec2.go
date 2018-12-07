@@ -42,7 +42,7 @@ func GetAllInstances(sess *session.Session) ([]*ec2.Instance, error) {
 		}
 		if result.NextToken == nil {
 			allInstancesDone = true
-			break
+			continue
 		}
 		input.SetNextToken(*result.NextToken)
 	}
