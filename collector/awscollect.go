@@ -15,6 +15,9 @@ import (
 func NewAWSCollector(partition string) (AWSCollector, error) {
 	var col AWSCollector
 	regions := col.getRegions(partition)
+	if regions == nil {
+		return col, fmt.Errorf("Invalid Region Selected")
+	}
 	err := col.initSessions(regions)
 	if err != nil {
 		return col, err
@@ -38,6 +41,8 @@ func (col *AWSCollector) getRegions(partition string) []string {
 		regions = awslib.GetAllChinaRegions()
 	case "default":
 		regions = awslib.GetAllRegions()
+	default:
+		return nil
 	}
 	return regions
 }
