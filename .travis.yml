@@ -6,13 +6,18 @@ go:
 services:
   - docker
 
-script:
-  - docker run --rm --privileged multiarch/qemu-user-static:register --reset
-  - go get -u golang.org/x/lint/golint
-  - make all
-  - make docker
-  - make docker-arm
+jobs:
+  include:
+  - stage: test
+    script:
+      - go get -u golang.org/x/lint/golint
+      - make all
+  - stage: docker
+    script:
+      - docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - make docker
+      - make docker-arm
+    if: branch = master AND type = push
 
 after_success:
-  - make docker-push
-  - make docker-push-arm
+  - ./.travis_docker_push.sh
