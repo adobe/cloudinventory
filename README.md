@@ -61,11 +61,12 @@ For AWS see: <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-env
 ## Library Use
 
 The packages with helping wrappers can be imported individually.
+
 GoDocs available at:
 
-[collector] (https://godoc.org/github.com/tchaudhry91/cloudinventory/collector)
+[collector](https://godoc.org/github.com/tchaudhry91/cloudinventory/collector)
 
-[awslib] (https://godoc.org/github.com/tchaudhry91/cloudinventory/awslib)
+[awslib](https://godoc.org/github.com/tchaudhry91/cloudinventory/awslib)
 
 ## Contributing
 
