@@ -69,11 +69,11 @@ GoDocs available at:
 
 ## Contributing
 
-Contributions are very welcome. Please see [Contributing Guide] (CONTRIBUTING.md) for more information
+Contributions are very welcome. Please see [Contributing Guide](CONTRIBUTING.md) for more information
 
 ## Licensing
 
-The project is licensed under the Apache V2 License. See [License] (LICENSE) for more information
+The project is licensed under the Apache V2 License. See [License](LICENSE) for more information
 
 
 Maintained By:
