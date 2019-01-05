@@ -45,11 +45,11 @@ test:
 
 vet:
 	@echo ">> Running Vet"
-	@go vet ./...
+	@GO111MODULE=on go vet ./...
 
 lint:
 	@echo ">> Running Lint"
-	@go list ./... | grep -v vender/ | golint
+	@GO111MODULE=on go list ./... | grep -v vender/ | golint
 
 docker:
 	@echo ">> Building Docker Image"
