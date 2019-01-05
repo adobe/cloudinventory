@@ -24,7 +24,7 @@ get:
 
 build:
 	@echo ">> Running Build"
-	@go build ./...
+	@GO111MODULE=on go build
 
 build-main:
 	@echo ">> Building Binary for current ARCH"
@@ -32,16 +32,16 @@ build-main:
 
 install:
 	@echo ">> Building and Installing"
-	@go install
+	@GO111MODULE=on go install
 	@echo ">> Done Install"
 
 test-short:
 	@echo ">> Running Quick Tests"
-	@go test -short ./...
+	@GOMODULE=on go test -short ./...
 
 test:
 	@echo ">> Running Tests"
-	@go test -cover -v ./...
+	@GOMODULE=on go test -cover -v ./...
 
 vet:
 	@echo ">> Running Vet"
