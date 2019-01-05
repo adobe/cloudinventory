@@ -20,7 +20,7 @@ verify:
 
 get:
 	@echo ">> Getting Dependencies"
-	@go get ./...
+	@GO111MODULE=on go get
 
 build:
 	@echo ">> Running Build"
