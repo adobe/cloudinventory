@@ -3,7 +3,7 @@ DOCKER_IMAGE_TAG     ?= master
 DOCKER_IMAGE_TAG_ARM ?= armhf
 
 
-all: mod-tidy get test vet lint install
+all: mod-tidy test vet lint install
 mod: mod-tidy verify get
 
 mod-tidy:
@@ -20,7 +20,7 @@ verify:
 
 get:
 	@echo ">> Getting Dependencies"
-	@GO111MODULE=on go get
+	@GO111MODULE go get
 
 build:
 	@echo ">> Running Build"
@@ -37,11 +37,11 @@ install:
 
 test-short:
 	@echo ">> Running Quick Tests"
-	@GOMODULE=on go test -short ./...
+	@GO111MODULE=on go test -short ./...
 
 test:
 	@echo ">> Running Tests"
-	@GOMODULE=on go test -cover -v ./...
+	@GO111MODULE=on go test -cover -v ./...
 
 vet:
 	@echo ">> Running Vet"
