@@ -3,8 +3,8 @@ DOCKER_IMAGE_TAG     ?= master
 DOCKER_IMAGE_TAG_ARM ?= armhf
 
 
-all: mod-tidy test vet lint install
-mod: mod-tidy verify vendor
+all: mod-tidy get test vet lint install
+mod: mod-tidy verify get
 
 mod-tidy:
 	@echo ">> Running go mod tidy"
