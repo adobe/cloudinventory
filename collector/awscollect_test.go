@@ -1,8 +1,9 @@
 package collector
 
 import (
-	"github.com/tchaudhry91/cloudinventory/awslib"
 	"testing"
+
+	"github.com/tchaudhry91/cloudinventory/awslib"
 )
 
 // TestAWSCollectorCreation attempts to build a new collector with initialized sessions for the given partition. This test is also very credential dependent.
@@ -19,7 +20,7 @@ func TestAWSCollectorCreation(t *testing.T) {
 		{partition: "china", err: false},
 		{partition: "non-existent", err: true},
 	} {
-		_, err := NewAWSCollector(testCase.partition)
+		_, err := NewAWSCollector(testCase.partition, nil)
 		if have := (err != nil); testCase.err != have {
 			t.Errorf("%s\tWant:%t\tHave:%t", testCase.partition, testCase.err, have)
 		}
@@ -31,7 +32,7 @@ func TestCollectEC2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
 	}
-	col, err := NewAWSCollector("default")
+	col, err := NewAWSCollector("default", nil)
 	if err != nil {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
@@ -55,7 +56,7 @@ func TestCollectRDS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
 	}
-	col, err := NewAWSCollector("default")
+	col, err := NewAWSCollector("default", nil)
 	if err != nil {
 		t.Errorf("Failed to create default collector: %v", err)
 	}

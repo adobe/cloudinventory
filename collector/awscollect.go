@@ -5,20 +5,22 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/tchaudhry91/cloudinventory/awslib"
 )
 
-// NewAWSCollector returns an AWSCollector with initialized sessions
-func NewAWSCollector(partition string) (AWSCollector, error) {
+// NewAWSCollector returns an AWSCollector with initialized sessions.
+// Uses supplied credentials, Standard Environment variables if creds not specified
+func NewAWSCollector(partition string, creds *credentials.Credentials) (AWSCollector, error) {
 	var col AWSCollector
 	regions := col.getRegions(partition)
 	if regions == nil {
 		return col, fmt.Errorf("Invalid Region Selected")
 	}
-	err := col.initSessions(regions)
+	err := col.initSessions(regions, creds)
 	if err != nil {
 		return col, err
 	}
@@ -47,8 +49,14 @@ func (col *AWSCollector) getRegions(partition string) []string {
 	return regions
 }
 
-func (col *AWSCollector) initSessions(regions []string) error {
-	sessions, err := awslib.BuildSessions(regions)
+func (col *AWSCollector) initSessions(regions []string, creds *credentials.Credentials) error {
+	var sessions map[string]*session.Session
+	var err error
+	if creds == nil {
+		sessions, err = awslib.BuildSessions(regions)
+	} else {
+		sessions, err = awslib.BuildSessionsWithCredentials(regions, creds)
+	}
 	if err != nil {
 		return fmt.Errorf("Unable to build AWS Sessions: %v", err)
 	}

@@ -28,7 +28,7 @@ var awsCmd = &cobra.Command{
 			return
 		}
 
-		col, err := collector.NewAWSCollector(partition)
+		col, err := collector.NewAWSCollector(partition, nil)
 		if err != nil {
 			fmt.Printf("Failed to create AWS collector: %v\n", err)
 			return

@@ -2,7 +2,9 @@ package awslib
 
 import (
 	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
@@ -27,13 +29,20 @@ func GetAllChinaRegions() []string {
 	return regions
 }
 
-// BuildSessions returns a map of sessions for each region
+// BuildSessions returns a map of sessions for each region using Environment Credentials
 func BuildSessions(regions []string) (map[string]*session.Session, error) {
+	creds := credentials.NewEnvCredentials()
+	return BuildSessionsWithCredentials(regions, creds)
+}
+
+// BuildSessionsWithCredentials returns a map of sessions for each region using supplied credentials
+func BuildSessionsWithCredentials(regions []string, creds *credentials.Credentials) (map[string]*session.Session, error) {
 	sessions := make(map[string]*session.Session)
 	var errMain error
 	for _, region := range regions {
 		sess, err := session.NewSession(&aws.Config{
-			Region: aws.String(region),
+			Region:      aws.String(region),
+			Credentials: creds,
 		})
 		if err != nil {
 			errMain = err
