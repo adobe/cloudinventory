@@ -1,4 +1,6 @@
 # Cloud Inventory Gatherer
+[![Build Status](https://travis-ci.org/tchaudhry91/cloudinventory.svg?branch=master)](https://travis-ci.org/tchaudhry91/cloudinventory)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tchaudhry91/cloudinventory)](https://goreportcard.com/report/github.com/tchaudhry91/cloudinventory)
 
 This package attempts to collect inventory of used services and resources across multiple clouds. It primarily wraps around the excellend SDKs already available but adds helper methods to aid in creation of inventories.
 Current supported:
