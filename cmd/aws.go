@@ -19,8 +19,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/spf13/cobra"
-	"github.com/tchaudhry91/cloudinventory/ansible"
-	"github.com/tchaudhry91/cloudinventory/collector"
+	"github.com/adobe/cloudinventory/ansible"
+	"github.com/adobe/cloudinventory/collector"
 )
 
 var partition string

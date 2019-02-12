@@ -1,7 +1,7 @@
 package main
 
 import (
-	cmd "github.com/tchaudhry91/cloudinventory/cmd"
+	cmd "github.com/adobe/cloudinventory/cmd"
 )
 
 func main() {

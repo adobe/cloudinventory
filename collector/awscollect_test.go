@@ -15,7 +15,7 @@ package collector
 import (
 	"testing"
 
-	"github.com/tchaudhry91/cloudinventory/awslib"
+	"github.com/adobe/cloudinventory/awslib"
 )
 
 // TestAWSCollectorCreation attempts to build a new collector with initialized sessions for the given partition. This test is also very credential dependent.
