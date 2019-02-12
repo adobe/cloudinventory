@@ -62,9 +62,9 @@ The packages with helping wrappers can be imported individually.
 
 GoDocs available at:
 
-[collector](https://godoc.org/github.com/tchaudhry91/cloudinventory/collector)
+[collector](https://godoc.org/github.com/adobe/cloudinventory/collector)
 
-[awslib](https://godoc.org/github.com/tchaudhry91/cloudinventory/awslib)
+[awslib](https://godoc.org/github.com/adobe/cloudinventory/awslib)
 
 ## Contributing
 
