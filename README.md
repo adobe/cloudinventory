@@ -1,6 +1,4 @@
 # Cloud Inventory Gatherer
-[![Build Status](https://travis-ci.org/tchaudhry91/cloudinventory.svg?branch=master)](https://travis-ci.org/tchaudhry91/cloudinventory)
-[![Go Report Card](https://goreportcard.com/badge/github.com/tchaudhry91/cloudinventory)](https://goreportcard.com/report/github.com/tchaudhry91/cloudinventory)
 
 This package attempts to collect inventory of used services and resources across multiple clouds. It primarily wraps around the excellend SDKs already available but adds helper methods to aid in creation of inventories.
 Current supported:
@@ -54,8 +52,6 @@ Global Flags:
   -p, --path string     file path to dump the inventory in (default "cloudinventory.json")
 ```
 
-Available under `releases` and as a docker image at `tchaudhry/cloudinventory`
-
 The tool reads credentials from your environment.
 
 For AWS see: <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html>
@@ -77,7 +73,3 @@ Contributions are very welcome. Please see [Contributing Guide](CONTRIBUTING.md)
 ## Licensing
 
 The project is licensed under the Apache V2 License. See [License](LICENSE) for more information
-
-
-Maintained By:
-*tanmay.chaudhry@gmail.com*

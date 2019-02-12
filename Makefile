@@ -1,4 +1,4 @@
-DOCKER_IMAGE         ?= tchaudhry/cloudinventory
+DOCKER_IMAGE         ?= adobe/cloudinventory
 DOCKER_IMAGE_TAG     ?= master
 DOCKER_IMAGE_TAG_ARM ?= armhf
 
