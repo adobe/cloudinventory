@@ -1,7 +1,7 @@
 module github.com/adobe/cloudinventory
 
 require (
-	github.com/aws/aws-sdk-go v1.16.36
+	github.com/aws/aws-sdk-go v1.17.8
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jpillora/backoff v0.0.0-20180909062703-3050d21c67d7
