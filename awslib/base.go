@@ -13,6 +13,7 @@ governing permissions and limitations under the License.
 package awslib
 
 import (
+	"github.com/aws/aws-sdk-go/aws/defaults"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -41,9 +42,9 @@ func GetAllChinaRegions() []string {
 	return regions
 }
 
-// BuildSessions returns a map of sessions for each region using Environment Credentials
+// BuildSessions returns a map of sessions for each region using Default Credential Chain
 func BuildSessions(regions []string) (map[string]*session.Session, error) {
-	creds := credentials.NewEnvCredentials()
+	creds := defaults.Get().Config.Credentials
 	return BuildSessionsWithCredentials(regions, creds)
 }
 
