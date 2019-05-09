@@ -33,8 +33,15 @@ type PGStorageProfile struct {
 	StorageMB int64
 }
 
+// PGDescriber - data that we wish to capture on each PG container
+type PGDescriber struct {
+	FQDN         string
+	Version      string
+	StorageSpace int64
+}
+
 //ExtractPostgresInventory - function that gets the clientID authenticated and runs a go-routine to get Postgres inventory for each subscription the client_id has access to.
-func ExtractPostgresInventory() {
+func ExtractPostgresInventory() ([]PGDescriber, error) {
 
 	sess, err := newSession()
 	if err != nil {
@@ -45,6 +52,7 @@ func ExtractPostgresInventory() {
 	//fmt.Println("The credentials supplied have access to the following subscriptions: ", listOfSubscriptions)
 
 	var wg sync.WaitGroup
+	var allPg []PGDescriber
 
 	for _, subID := range listOfSubscriptions {
 		wg.Add(1)
@@ -74,8 +82,13 @@ func ExtractPostgresInventory() {
 					fmt.Println("cant make sense of pg server list ", err)
 				}
 				json.Unmarshal(bs, &pgServer)
+				allPg = append(allPg, PGDescriber{
+					FQDN:         pgServer.Properties.FullyQualifiedDomainName,
+					Version:      pgServer.Properties.Version,
+					StorageSpace: pgServer.Properties.StorageProfile.StorageMB,
+				})
 
-				fmt.Printf("%v -- %v -- %v MB \n\n", pgServer.Properties.FullyQualifiedDomainName, pgServer.Properties.Version, pgServer.Properties.StorageProfile.StorageMB)
+				fmt.Printf("{%v   %v   %v MB} \n\n", pgServer.Properties.FullyQualifiedDomainName, pgServer.Properties.Version, pgServer.Properties.StorageProfile.StorageMB)
 
 			}
 			wg.Done()
@@ -83,5 +96,5 @@ func ExtractPostgresInventory() {
 		wg.Wait()
 
 	}
-
+	return allPg, nil
 }

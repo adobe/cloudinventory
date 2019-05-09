@@ -1,6 +1,10 @@
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+
 	azurelib "github.com/adobe/cloudinventory/azurelib"
 	"github.com/spf13/cobra"
 )
@@ -15,23 +19,66 @@ var azureCmd = &cobra.Command{
 	ValidArgs: []string{"vm", "pg"},
 	Args:      matchAll(cobra.MinimumNArgs(0), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
+		path := cmd.Flag("path").Value.String()
+		result := make(map[string]interface{})
+
 		if len(args) > 0 {
 			for _, arg := range args {
 				switch arg {
 				case "vm":
-					azurelib.ExtractVMInventory()
+					vmlist, err := azurelib.ExtractVMInventory()
+					if err != nil {
+						fmt.Printf("Cannot obtain VM information - %v \n", err)
+					} else {
+						result["vm"] = vmlist
+					}
 				case "pg":
-					azurelib.ExtractPostgresInventory()
+					pglist, err := azurelib.ExtractPostgresInventory()
+					if err != nil {
+						fmt.Printf("Cannot obtain Postgres information - %v \n", err)
+					} else {
+						result["pg"] = pglist
+					}
 				default:
-					azurelib.ExtractVMInventory()
-					azurelib.ExtractPostgresInventory()
+					vmlist, err := azurelib.ExtractVMInventory()
+					if err != nil {
+						fmt.Printf("Cannot obtain VM information - %v \n", err)
+					} else {
+						result["vm"] = vmlist
+					}
+					pglist, err := azurelib.ExtractPostgresInventory()
+					if err != nil {
+						fmt.Printf("Cannot obtain Postgres information - %v \n", err)
+					} else {
+						result["pg"] = pglist
+					}
 				}
 
 			}
 		} else {
-			azurelib.ExtractVMInventory()
-			azurelib.ExtractPostgresInventory()
+			vmlist, err := azurelib.ExtractVMInventory()
+			if err != nil {
+				fmt.Printf("Cannot obtain VM information - %v \n", err)
+			} else {
+				result["vm"] = vmlist
+			}
+			pglist, err := azurelib.ExtractPostgresInventory()
+			if err != nil {
+				fmt.Printf("Cannot obtain Postgres information - %v \n", err)
+			} else {
+				result["pg"] = pglist
+			}
 		}
+		fmt.Printf("Writing data to %s \n", path)
+		jsonBytes, err := json.Marshal(result)
+		if err != nil {
+			fmt.Printf("Error Marshalling JSON: %v\n", err)
+		}
+		err = ioutil.WriteFile(path, jsonBytes, 0644)
+		if err != nil {
+			fmt.Printf("Error writing file: %v\n", err)
+		}
+
 	},
 }
 
@@ -47,5 +94,6 @@ func matchAll(allArgs ...cobra.PositionalArgs) cobra.PositionalArgs {
 }
 
 func init() {
+	azureCmd.PersistentFlags().StringP("path", "p", "azurecloudinventory.json", "file path to dump the inventory in")
 	rootCmd.AddCommand(azureCmd)
 }

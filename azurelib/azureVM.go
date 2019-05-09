@@ -115,7 +115,7 @@ func extractIPfromNicRes(genRes resources.GenericResource) (string, error) {
 }
 
 //ExtractVMInventory - function that gets the clientID authenticated and runs a go-routine to extract VM inventory for each subscription the client_id has access to
-func ExtractVMInventory() {
+func ExtractVMInventory() ([]VMDescriber, error) {
 
 	sess, err := newSession()
 	if err != nil {
@@ -126,6 +126,7 @@ func ExtractVMInventory() {
 	//fmt.Println("The credentials supplied have access to the following subscriptions: ", listOfSubscriptions)
 
 	var wg sync.WaitGroup
+	var allVMs []VMDescriber
 
 	for _, subID := range listOfSubscriptions {
 		wg.Add(1)
@@ -183,11 +184,12 @@ func ExtractVMInventory() {
 
 				}
 				fmt.Printf("%v \n", EachVM)
+				allVMs = append(allVMs, EachVM)
 			}
 			wg.Done()
 		}(subID)
 		wg.Wait()
 
 	}
-
+	return allVMs, nil
 }
