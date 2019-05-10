@@ -12,50 +12,36 @@ import (
 // azureCmd: azure command. Gets added to rootCmd
 var azureCmd = &cobra.Command{
 	Use:   "azure",
-	Short: "Extract Azure inventory. Currently supports VM's(arg: vm) and PostgresDB(arg: pg)",
-	Long: `Use vm for virtual machine inventory from Azure and
-		   use pg for extracting postgres data from Azure. 
-		   If you dont provide args, both virtual machine and postgres data will be returned `,
-	ValidArgs: []string{"vm", "pg"},
-	Args:      matchAll(cobra.MinimumNArgs(0), cobra.OnlyValidArgs),
+	Short: "Dump Azure inventory. Currently supports VM's(arg: vm) and PostgresDB(arg: pg)",
+	Long:  `Use vm as an arg for virtual machine inventory from Azure and
+	     use pg as an arg for extracting postgres data from Azure. 
+	     If you dont provide args to --filter, both virtual machine and postgres data will be returned `,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := cmd.Flag("path").Value.String()
+		filter := cmd.Flag("filter").Value.String()
 		result := make(map[string]interface{})
 
-		if len(args) > 0 {
-			for _, arg := range args {
-				switch arg {
-				case "vm":
-					vmlist, err := azurelib.ExtractVMInventory()
-					if err != nil {
-						fmt.Printf("Cannot obtain VM information - %v \n", err)
-					} else {
-						result["vm"] = vmlist
-					}
-				case "pg":
-					pglist, err := azurelib.ExtractPostgresInventory()
-					if err != nil {
-						fmt.Printf("Cannot obtain Postgres information - %v \n", err)
-					} else {
-						result["pg"] = pglist
-					}
-				default:
-					vmlist, err := azurelib.ExtractVMInventory()
-					if err != nil {
-						fmt.Printf("Cannot obtain VM information - %v \n", err)
-					} else {
-						result["vm"] = vmlist
-					}
-					pglist, err := azurelib.ExtractPostgresInventory()
-					if err != nil {
-						fmt.Printf("Cannot obtain Postgres information - %v \n", err)
-					} else {
-						result["pg"] = pglist
-					}
-				}
+		if !validateAzureFilter(filter) {
+			fmt.Printf("Invalid filter selected, please select a supported AWS service")
+			return
+		}
 
+		switch filter {
+		case "vm":
+			vmlist, err := azurelib.ExtractVMInventory()
+			if err != nil {
+				fmt.Printf("Cannot obtain VM information - %v \n", err)
+			} else {
+				result["vm"] = vmlist
 			}
-		} else {
+		case "pg":
+			pglist, err := azurelib.ExtractPostgresInventory()
+			if err != nil {
+				fmt.Printf("Cannot obtain Postgres information - %v \n", err)
+			} else {
+				result["pg"] = pglist
+			}
+		default:
 			vmlist, err := azurelib.ExtractVMInventory()
 			if err != nil {
 				fmt.Printf("Cannot obtain VM information - %v \n", err)
@@ -69,6 +55,7 @@ var azureCmd = &cobra.Command{
 				result["pg"] = pglist
 			}
 		}
+
 		fmt.Printf("Writing data to %s \n", path)
 		jsonBytes, err := json.Marshal(result)
 		if err != nil {
@@ -82,6 +69,21 @@ var azureCmd = &cobra.Command{
 	},
 }
 
+func validateAzureFilter(filter string) bool {
+	validSlice := []string{
+		"vm",
+		"pg",
+		"",
+	}
+	for _, service := range validSlice {
+		if filter == service {
+			return true
+		}
+	}
+	return false
+}
+
+/*
 func matchAll(allArgs ...cobra.PositionalArgs) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
 		for _, eachArg := range allArgs {
@@ -92,8 +94,8 @@ func matchAll(allArgs ...cobra.PositionalArgs) cobra.PositionalArgs {
 		return nil
 	}
 }
+*/
 
 func init() {
-	azureCmd.PersistentFlags().StringP("path", "p", "azurecloudinventory.json", "file path to dump the inventory in")
-	rootCmd.AddCommand(azureCmd)
+	dumpCmd.AddCommand(azureCmd)
 }

@@ -30,6 +30,27 @@ Flags:
 Use "cloudinventory [command] --help" for more information about a command.
 ```
 
+Here is the list of subcommands
+
+```bash
+dump --help
+Dumps the inventory for the given options
+
+Usage:
+  cloudinventory dump [command]
+
+Available Commands:
+  aws         Dump AWS inventory. Currently supports EC2/RDS
+  azure       Dump Azure inventory. Currently supports VM's(arg: vm) and PostgresDB(arg: pg)
+
+Flags:
+  -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds
+  -h, --help            help for dump
+  -p, --path string     file path to dump the inventory in (default "cloudinventory.json")
+
+Use "cloudinventory dump [command] --help" for more information about a command.
+```
+
 The subcommands all have additional options which be found by doing a `-h`
 Example for AWS:
 
@@ -55,6 +76,8 @@ Global Flags:
 The tool reads credentials from your environment.
 
 For AWS see: <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html>
+
+For Azure, your environment should have right values for AZURE_CLIENT_ID, AZURE_CLIENT_SECRET and AZURE_TENANT_ID. You can pass them at runtime to the docker container or write a docker wrapper to extract them at runtime from a secret store
 
 ## Library Use
 
