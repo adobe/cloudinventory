@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// azureCmd: azure command. Gets added to rootCmd
+// azureCmd: azure sub command. Gets added to dumpCmd
 var azureCmd = &cobra.Command{
 	Use:   "azure",
 	Short: "Dump Azure inventory. Currently supports VM's(arg: vm) and PostgresDB(arg: pg)",
@@ -83,18 +83,6 @@ func validateAzureFilter(filter string) bool {
 	return false
 }
 
-/*
-func matchAll(allArgs ...cobra.PositionalArgs) cobra.PositionalArgs {
-	return func(cmd *cobra.Command, args []string) error {
-		for _, eachArg := range allArgs {
-			if err := eachArg(cmd, args); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-*/
 
 func init() {
 	dumpCmd.AddCommand(azureCmd)
