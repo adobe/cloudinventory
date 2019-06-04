@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/services/postgresql/mgmt/2017-12-01/postgresql"
+	log "github.com/sirupsen/logrus"
 )
 
 // PGServer - struct to store data for each postgres server
@@ -45,11 +45,11 @@ func ExtractPostgresInventory() ([]PGDescriber, error) {
 
 	sess, err := newSession()
 	if err != nil {
-		fmt.Printf("could not create a session. Here is the error: %s \n", err)
+		log.WithFields(log.Fields{"Error": err}).Warning("Error while extracting Azure Postgres inventory. Could not create a session")
 		panic(errors.New("could not create a session"))
+		return nil, err
 	}
 	listOfSubscriptions, _ := ListSubscriptions(sess)
-	//fmt.Println("The credentials supplied have access to the following subscriptions: ", listOfSubscriptions)
 
 	var wg sync.WaitGroup
 	var allPg []PGDescriber
@@ -58,10 +58,6 @@ func ExtractPostgresInventory() ([]PGDescriber, error) {
 		wg.Add(1)
 		go func(subscriptionID string) {
 
-			if err != nil {
-				fmt.Printf("cannot obtain the session -- %v\n", err)
-				os.Exit(1)
-			}
 			postgresqlClient := postgresql.NewServersClient(subID)
 			postgresqlClient.Authorizer = sess.Authorizer
 
@@ -69,17 +65,19 @@ func ExtractPostgresInventory() ([]PGDescriber, error) {
 
 			pgList, pgErr := postgresqlClient.List(context.Background())
 			if pgErr != nil {
-				fmt.Println(pgErr)
+				log.WithFields(log.Fields{"PGError": pgErr}).Error("cannot list Postgres Servers")
+				os.Exit(1)
 			}
-
-			fmt.Println(" ========== POSTGRES DATA ========= ", " subscription: ", subID, " =======")
+			log.WithFields(log.Fields{"subscriptionID": subID}).Info("POSTGRES DATA")
 			for _, eachpgServer := range *pgList.Value {
 				var bs []byte
 				var err error
 
 				bs, err = eachpgServer.MarshalJSON()
 				if err != nil {
-					fmt.Println("cant make sense of pg server list ", err)
+					log.WithFields(log.Fields{"PGError": err}).Error("cant make sense of pg server list")
+					os.Exit(1)
+
 				}
 				json.Unmarshal(bs, &pgServer)
 				allPg = append(allPg, PGDescriber{
@@ -88,8 +86,7 @@ func ExtractPostgresInventory() ([]PGDescriber, error) {
 					StorageSpace: pgServer.Properties.StorageProfile.StorageMB,
 				})
 
-				fmt.Printf("{%v   %v   %v MB} \n\n", pgServer.Properties.FullyQualifiedDomainName, pgServer.Properties.Version, pgServer.Properties.StorageProfile.StorageMB)
-
+				log.WithFields(log.Fields{"FQDN": pgServer.Properties.FullyQualifiedDomainName, "Version": pgServer.Properties.Version, "size": pgServer.Properties.StorageProfile.StorageMB, "subscription": subID}).Info("Data from each postgres instance")
 			}
 			wg.Done()
 		}(subID)

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-03-01/compute"
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2019-03-01/resources"
+	log "github.com/sirupsen/logrus"
 )
 
 // NWInt - captures the structure of a Network Interface
@@ -119,11 +119,11 @@ func ExtractVMInventory() ([]VMDescriber, error) {
 
 	sess, err := newSession()
 	if err != nil {
-		fmt.Printf("could not create a session. Here is the error: %s \n", err)
+		log.WithFields(log.Fields{"Error": err}).Warning("Error while extracting Azure VM inventory. Could not create a session")
 		panic(errors.New("could not create a session"))
+		return nil, err
 	}
 	listOfSubscriptions, _ := ListSubscriptions(sess)
-	//fmt.Println("The credentials supplied have access to the following subscriptions: ", listOfSubscriptions)
 
 	var wg sync.WaitGroup
 	var allVMs []VMDescriber
@@ -132,18 +132,13 @@ func ExtractVMInventory() ([]VMDescriber, error) {
 		wg.Add(1)
 		go func(subscriptionID string) {
 
-			if err != nil {
-				fmt.Printf("cannot obtain the session -- %v\n", err)
-				os.Exit(1)
-			}
-
 			vmClient := compute.NewVirtualMachinesClient(subID)
 			vmClient.Authorizer = sess.Authorizer
 
-			fmt.Println("============ VM Data ============== ", " subscription: ", subID, " =======")
 			for vmList, vmErr := vmClient.ListAllComplete(context.Background()); vmList.NotDone(); vmErr = vmList.Next() {
 				if vmErr != nil {
-					fmt.Println("cannot retrieve VM list", vmErr)
+					log.WithFields(log.Fields{"Error": vmErr}).Warning("Error while obtaining a list of AzureVMs")
+					os.Exit(1)
 				}
 				var bs []byte
 				var EachVM VMDescriber
@@ -156,7 +151,8 @@ func ExtractVMInventory() ([]VMDescriber, error) {
 				for _, eachNic := range VMData.Properties.NetworkProfile.NetworkInterfaces {
 					nicRes, err := describeResource(sess, subID, eachNic.ID)
 					if err != nil {
-						fmt.Println("cannot describe resource")
+						log.WithFields(log.Fields{"Error": err}).Warning("Cannot describe resource")
+						os.Exit(1)
 					}
 					var eachNWInt NWInt
 					bs, _ := nicRes.MarshalJSON()
@@ -167,12 +163,12 @@ func ExtractVMInventory() ([]VMDescriber, error) {
 						if len(eachIP.Properties.PublicIPAddress.ID) > 0 {
 							pubipRes, err := describeResource(sess, subID, eachIP.Properties.PublicIPAddress.ID)
 							if err != nil {
-								fmt.Println("cannot retrieve Public IP")
+								log.WithFields(log.Fields{"Error": err}).Warning("Cannot retrieve Public IP")
 							}
 
 							publicIP, err := extractIPfromNicRes(pubipRes)
 							if err != nil {
-								fmt.Println("error while extracting Public IP from its generic resource ", err)
+								log.WithFields(log.Fields{"Error": err}).Warning("error while extracting Public IP from its generic resource")
 							}
 							if len(publicIP) > 0 {
 								EachVM.PublicIP = publicIP
@@ -183,7 +179,7 @@ func ExtractVMInventory() ([]VMDescriber, error) {
 					}
 
 				}
-				fmt.Printf("%v \n", EachVM)
+				log.WithFields(log.Fields{"Data": EachVM, "subscription": subID}).Info("Printing data for each VM")
 				allVMs = append(allVMs, EachVM)
 			}
 			wg.Done()
