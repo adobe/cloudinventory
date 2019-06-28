@@ -42,3 +42,41 @@ func GetAllHostedZones(sess *session.Session) ([]*route53.HostedZone, error) {
 	}
 	return zones, nil;
 }
+
+// GetHostedZoneRecords returns the hostedzonesRecords for a particular hostedZoneId
+func GetHostedZoneRecords(sess *session.Session, hostedZoneId string) ([]*route53.ResourceRecordSet, error) {
+	var nextPageExists = true
+
+	b := &backoff.Backoff{
+		//These are the defaults
+		Min:    10 * time.Millisecond,
+		Max:    1 * time.Second,
+		Factor: 2,
+		Jitter: false,
+	}
+
+	records := make([]*route53.ResourceRecordSet, 0)
+	request := &route53.ListResourceRecordSetsInput{
+		HostedZoneId: &hostedZoneId,
+	}
+
+	r53 := route53.New(sess)
+
+	for nextPageExists {
+
+		response , err := r53.ListResourceRecordSets(request)
+		if err != nil {
+			time.Sleep(b.Duration())
+		}else {
+			records = append(records, response.ResourceRecordSets...)
+			if response.IsTruncated == nil || !*response.IsTruncated {
+				nextPageExists = false
+				continue
+			}
+			// Setting next page.
+			request.StartRecordName = response.NextRecordName
+			request.StartRecordIdentifier = response.NextRecordIdentifier
+		}
+	}
+	return records, nil
+}
