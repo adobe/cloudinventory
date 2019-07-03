@@ -37,7 +37,7 @@ func GetAllHostedZones(sess *session.Session) ([]*route53.HostedZone, error) {
 				break
 			}
 			// Setting next page.
-			request.Marker = response.NextMarker;
+			request.Marker = response.NextMarker
 		}
 	}
 	return zones, nil;
@@ -71,11 +71,12 @@ func GetHostedZoneRecords(sess *session.Session, hostedZoneId string) ([]*route5
 			records = append(records, response.ResourceRecordSets...)
 			if response.IsTruncated == nil || !*response.IsTruncated {
 				nextPageExists = false
-				continue
+				break
 			}
 			// Setting next page.
 			request.StartRecordName = response.NextRecordName
 			request.StartRecordIdentifier = response.NextRecordIdentifier
+			request.StartRecordType = response.NextRecordType
 		}
 	}
 	return records, nil
