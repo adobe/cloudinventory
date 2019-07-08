@@ -175,6 +175,50 @@ func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
 	return zones, nil;
 }
 
+// GetHostedZoneRecords returns the hostedzonesRecords for a particular hostedZoneId
+func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.ResourceRecordSet, error) {
+	var nextPageExists = true
+
+	b := &backoff.Backoff{
+		//These are the defaults
+		Min:    10 * time.Millisecond,
+		Max:    1 * time.Second,
+		Factor: 2,
+		Jitter: false,
+	}
+
+	var route53Session *session.Session
+
+	for _, session := range col.sessions {
+		route53Session = session
+	}
+	r53 := route53.New(route53Session)
+
+	records := make([]*route53.ResourceRecordSet, 0)
+	request := &route53.ListResourceRecordSetsInput{
+		HostedZoneId: &hostedZoneId,
+	}
+
+	for nextPageExists {
+
+		response , err := r53.ListResourceRecordSets(request)
+		if err != nil {
+			time.Sleep(b.Duration())
+		}else {
+			records = append(records, response.ResourceRecordSets...)
+			if response.IsTruncated == nil || !*response.IsTruncated {
+				nextPageExists = false
+				break
+			}
+			// Setting next page.
+			request.StartRecordName = response.NextRecordName
+			request.StartRecordIdentifier = response.NextRecordIdentifier
+			request.StartRecordType = response.NextRecordType
+		}
+	}
+	return records, nil
+}
+
 // CollectRDS returns a concurrently collected RDS inventory for all the regions
 func (col AWSCollector) CollectRDS() (map[string][]*rds.DBInstance, error) {
 	instances := make(map[string][]*rds.DBInstance)
