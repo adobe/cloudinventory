@@ -60,6 +60,11 @@ var awsCmd = &cobra.Command{
 			if err != nil {
 				return
 			}
+		case "hostedzone":
+			err := collectHostedZone(col, result)
+			if err != nil {
+				return
+			}
 		default:
 			err := collectEC2(col, result)
 			if err != nil {
@@ -98,6 +103,7 @@ func validateAWSFilter(filter string) bool {
 	validSlice := []string{
 		"ec2",
 		"rds",
+		"hostedzone",
 		"",
 	}
 	for _, service := range validSlice {
@@ -116,6 +122,17 @@ func collectEC2(col collector.AWSCollector, result map[string]interface{}) error
 	}
 	fmt.Printf("Gathered EC2 Instances across %d regions\n", len(instances))
 	result["ec2"] = instances
+	return nil
+}
+
+func collectHostedZone(col collector.AWSCollector, result map[string]interface{}) error {
+	instances, err := col.CollectZones()
+	if err != nil {
+		fmt.Printf("Failed to gather HostedZones Data: %v\n", err)
+		return err
+	}
+	fmt.Printf("Gathered HostedZone data across all regions\n")
+	result["hostedzones"] = instances
 	return nil
 }
 
