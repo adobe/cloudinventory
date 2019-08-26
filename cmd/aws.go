@@ -31,7 +31,7 @@ var ansiblePriv bool
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
 	Use:   "aws",
-	Short: "Dump AWS inventory. Currently supports EC2/RDS",
+	Short: "Dump AWS inventory. Currently supports EC2/RDS/Route53/LoadBalancers",
 	Run: func(cmd *cobra.Command, args []string) {
 		path := cmd.Flag("path").Value.String()
 		filter := cmd.Flag("filter").Value.String()
@@ -62,6 +62,11 @@ var awsCmd = &cobra.Command{
 			}
 		case "hostedzone":
 			err := collectHostedZone(col, result)
+			if err != nil {
+				return
+			}
+		case "loadbalancer":
+			err := collectLoadBalancers(col, result)
 			if err != nil {
 				return
 			}
@@ -104,6 +109,7 @@ func validateAWSFilter(filter string) bool {
 		"ec2",
 		"rds",
 		"hostedzone",
+		"loadbalancer",
 		"",
 	}
 	for _, service := range validSlice {
@@ -144,6 +150,17 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 	}
 	fmt.Printf("Gathered RDS Instances across %d regions\n", len(instances))
 	result["rds"] = instances
+	return nil
+}
+
+func collectLoadBalancers(col collector.AWSCollector, result map[string]interface{}) error {
+	lbs, err := col.CollectLoadBalancers()
+	if err != nil {
+		fmt.Printf("Failed to gather load balancers: %v\n", err)
+		return err
+	}
+	fmt.Printf("Gathered Load Balancers across %d regions\n", len(lbs))
+	result["loadbalancer"] = lbs
 	return nil
 }
 

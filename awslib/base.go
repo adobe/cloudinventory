@@ -13,8 +13,9 @@ governing permissions and limitations under the License.
 package awslib
 
 import (
-	"github.com/aws/aws-sdk-go/aws/defaults"
 	"fmt"
+
+	"github.com/aws/aws-sdk-go/aws/defaults"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
