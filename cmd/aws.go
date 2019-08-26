@@ -65,12 +65,21 @@ var awsCmd = &cobra.Command{
 			if err != nil {
 				return
 			}
+		case "cdn":
+			err := collectCloudFrontDistributions(col, result)
+			if err != nil {
+				return
+			}
 		default:
 			err := collectEC2(col, result)
 			if err != nil {
 				return
 			}
 			err = collectRDS(col, result)
+			if err != nil {
+				return
+			}
+			err = collectCloudFrontDistributions(col, result)
 			if err != nil {
 				return
 			}
@@ -103,6 +112,7 @@ func validateAWSFilter(filter string) bool {
 	validSlice := []string{
 		"ec2",
 		"rds",
+		"cdn",
 		"hostedzone",
 		"",
 	}
@@ -144,6 +154,18 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 	}
 	fmt.Printf("Gathered RDS Instances across %d regions\n", len(instances))
 	result["rds"] = instances
+	return nil
+}
+
+func collectCloudFrontDistributions(col collector.AWSCollector, result map[string]interface{}) error {
+	fmt.Println("Starting collection for CDN ...")
+	distributions, err := col.CollectCloudFrontDistributions()
+	if err != nil {
+		fmt.Printf("Failed to gather CDN Data: %v\n", err)
+		return err
+	}
+	fmt.Printf("Gathered CDN Instances across all regions\n")
+	result["cdn"] = distributions
 	return nil
 }
 

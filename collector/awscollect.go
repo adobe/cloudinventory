@@ -17,13 +17,16 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/jpillora/backoff"
+
 	"github.com/adobe/cloudinventory/awslib"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/jpillora/backoff"
+	"github.com/aws/aws-sdk-go/service/cloudfront"
+
 )
 
 // NewAWSCollector returns an AWSCollector with initialized sessions.
@@ -145,7 +148,7 @@ func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
 		Jitter: false,
 	}
 
-	zones := make([]*route53.HostedZone, 0);
+	zones := make([]*route53.HostedZone, 0)
 	var nextPageExists = true
 	request := &route53.ListHostedZonesInput{}
 
@@ -157,22 +160,35 @@ func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
 	r53 := route53.New(route53Session)
 
 	for nextPageExists {
-		response , err := r53.ListHostedZones(request)
+		response, err := r53.ListHostedZones(request)
 		if err != nil {
 			time.Sleep(b.Duration())
-		}else {
+		} else {
 			for recordIndex := range response.HostedZones {
-				zones = append(zones ,response.HostedZones[recordIndex]);
+				zones = append(zones, response.HostedZones[recordIndex])
 			}
 			if response.IsTruncated == nil || !*response.IsTruncated {
 				nextPageExists = false
 				break
 			}
 			// Setting next page.
-			request.Marker = response.NextMarker;
+			request.Marker = response.NextMarker
 		}
 	}
-	return zones, nil;
+	return zones, nil
+}
+
+// CollectCloudFrontDistributions return all distributions
+func (col AWSCollector) CollectCloudFrontDistributions() ([]*cloudfront.DistributionList , error) {
+	
+	chunk, err := CollectCloudFrontOnGlobalSession()
+	if err != nil {
+				fmt.Printf("Error while gathering %v", err)
+				return chunk, err
+		}
+	fmt.Println("Done Gathering the CDNs")
+	return chunk, err
+	
 }
 
 // GetHostedZoneRecords returns the hostedzonesRecords for a particular hostedZoneId
@@ -201,10 +217,10 @@ func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.Re
 
 	for nextPageExists {
 
-		response , err := r53.ListResourceRecordSets(request)
+		response, err := r53.ListResourceRecordSets(request)
 		if err != nil {
 			time.Sleep(b.Duration())
-		}else {
+		} else {
 			records = append(records, response.ResourceRecordSets...)
 			if response.IsTruncated == nil || !*response.IsTruncated {
 				nextPageExists = false
@@ -282,4 +298,11 @@ func CollectEC2PerSession(sess *session.Session) ([]*ec2.Instance, error) {
 func CollectHostedZonePerSession(sess *session.Session) ([]*route53.HostedZone, error) {
 	instances, err := awslib.GetAllHostedZones(sess)
 	return instances, err
+}
+
+// CollectCloudFrontOnGlobalSession returns Cloudfront Distributions inventory for a global session
+func CollectCloudFrontOnGlobalSession() ([]*cloudfront.DistributionList, error) {
+	fmt.Println(">>> Starting on global session...")
+	distributions, err := awslib.GetAllCloudFrontDistributions()
+	return distributions, err
 }
