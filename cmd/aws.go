@@ -154,13 +154,28 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 }
 
 func collectLoadBalancers(col collector.AWSCollector, result map[string]interface{}) error {
-	lbs, err := col.CollectLoadBalancers()
+	
+	var allLbs []interface{}
+	clbs, err := col.CollectClassicLoadBalancers()
 	if err != nil {
 		fmt.Printf("Failed to gather load balancers: %v\n", err)
-		return err
+		// return err
+	} else {
+		allLbs = append(allLbs, clbs)
+		fmt.Printf("Gathered Classic Load Balancers across %d regions\n", len(clbs))
 	}
-	fmt.Printf("Gathered Load Balancers across %d regions\n", len(lbs))
-	result["loadbalancer"] = lbs
+
+	anlbs, err := col.CollectApplicationAndNetworkLoadBalancers()
+	if err != nil {
+		fmt.Printf("Failed to gather load balancers: %v\n", err)
+		// return err
+	} else {
+		allLbs = append(allLbs, anlbs)
+		fmt.Printf("Gathered Application and Network Load Balancers across %d regions\n", len(anlbs))
+	}
+
+	result["loadbalancer"] = allLbs
+	
 	return nil
 }
 

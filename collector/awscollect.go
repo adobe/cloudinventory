@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/jpillora/backoff"
@@ -221,8 +222,8 @@ func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.Re
 	return records, nil
 }
 
-// CollectLoadBalancers returns a concurrently collected LoadBalancers inventory for all the regions
-func (col AWSCollector) CollectLoadBalancers() (map[string][]*elb.LoadBalancerDescription, error) {
+// CollectClassicLoadBalancers returns a concurrently collected LoadBalancers inventory for all the regions
+func (col AWSCollector) CollectClassicLoadBalancers() (map[string][]*elb.LoadBalancerDescription, error) {
 	instances := make(map[string][]*elb.LoadBalancerDescription)
 
 	// instanceRegion is a struct that holds all LoadBalancers instances in a given region
@@ -239,7 +240,7 @@ func (col AWSCollector) CollectLoadBalancers() (map[string][]*elb.LoadBalancerDe
 		wg.Add(1)
 		go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
 			defer wg.Done()
-			chunk, err := CollectLoadBalancersPerSession(sess)
+			chunk, err := CollectClassicLoadBalancerPerSession(sess)
 
 			if err != nil {
 				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
@@ -267,10 +268,50 @@ func (col AWSCollector) CollectLoadBalancers() (map[string][]*elb.LoadBalancerDe
 	return instances, nil
 }
 
-// CollectLoadBalancersPerSession returns an LoadBalancers inventory for a given session
-func CollectLoadBalancersPerSession(sess *session.Session) ([]*elb.LoadBalancerDescription, error) {
-	instances, err := awslib.GetAllLoadBalancers(sess)
-	return instances, err
+// CollectApplicationAndNetworkLoadBalancers returns a concurrently collected LoadBalancers inventory for all the regions
+func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers() (map[string][]*elbv2.LoadBalancer, error) {
+	instances := make(map[string][]*elbv2.LoadBalancer)
+
+	// instanceRegion is a struct that holds all LoadBalancers instances in a given region
+	type instanceRegion struct {
+		region    string
+		instances []*elbv2.LoadBalancer
+	}
+
+	instancesChan := make(chan instanceRegion, len(col.sessions))
+	errChan := make(chan error, len(col.sessions))
+	var wg sync.WaitGroup
+
+	for region, sess := range col.sessions {
+		wg.Add(1)
+		go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
+			defer wg.Done()
+			chunk, err := CollectApplicationNetworkLoadBalancerPerSession(sess)
+
+			if err != nil {
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				return
+			}
+
+			// Ignore regions with no instances
+			if chunk == nil {
+				return
+			}
+			instancesChan <- instanceRegion{region, chunk}
+		}(sess, region, instancesChan, errChan)
+	}
+	wg.Wait()
+	close(instancesChan)
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", <-errChan))
+	}
+
+	for regionChunk := range instancesChan {
+		instances[regionChunk.region] = regionChunk.instances
+	}
+	return instances, nil
 }
 
 // CollectRDS returns a concurrently collected RDS inventory for all the regions
@@ -338,8 +379,14 @@ func CollectHostedZonePerSession(sess *session.Session) ([]*route53.HostedZone, 
 	return instances, err
 }
 
-// CollectLoadBalancerPerSession returns an LoadBalancer inventory for a given session
-func CollectLoadBalancerPerSession(sess *session.Session) ([]*route53.HostedZone, error) {
-	instances, err := awslib.GetAllHostedZones(sess)
-	return instances, err
+// CollectClassicLoadBalancerPerSession returns an LoadBalancer inventory for a given session
+func CollectClassicLoadBalancerPerSession(sess *session.Session) ([]*elb.LoadBalancerDescription, error) {
+	loadbalancers, err := awslib.GetAllCLB(sess)
+	return loadbalancers, err
+}
+
+// CollectApplicationNetworkLoadBalancerPerSession returns an LoadBalancer inventory for a given session
+func CollectApplicationNetworkLoadBalancerPerSession(sess *session.Session) ([]*elbv2.LoadBalancer, error) {
+	loadbalancers, err := awslib.GetAllALBAndNLB(sess)
+	return loadbalancers, err
 }
