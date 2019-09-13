@@ -17,10 +17,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/spf13/cobra"
 	"github.com/adobe/cloudinventory/ansible"
 	"github.com/adobe/cloudinventory/collector"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/spf13/cobra"
 )
 
 var partition string
@@ -154,28 +154,25 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 }
 
 func collectLoadBalancers(col collector.AWSCollector, result map[string]interface{}) error {
-	
+
 	var allLbs []interface{}
 	clbs, err := col.CollectClassicLoadBalancers()
 	if err != nil {
-		fmt.Printf("Failed to gather load balancers: %v\n", err)
-		// return err
-	} else {
-		allLbs = append(allLbs, clbs)
-		fmt.Printf("Gathered Classic Load Balancers across %d regions\n", len(clbs))
+		fmt.Printf("Failed to gather classic load balancers: %v\n", err)
+		return err
 	}
+	allLbs = append(allLbs, clbs)
+	fmt.Printf("Gathered Classic Load Balancers across %d regions\n", len(clbs))
 
 	anlbs, err := col.CollectApplicationAndNetworkLoadBalancers()
 	if err != nil {
-		fmt.Printf("Failed to gather load balancers: %v\n", err)
-		// return err
-	} else {
-		allLbs = append(allLbs, anlbs)
-		fmt.Printf("Gathered Application and Network Load Balancers across %d regions\n", len(anlbs))
+		fmt.Printf("Failed to gather application and network load balancers: %v\n", err)
+		return err
 	}
+	allLbs = append(allLbs, anlbs)
+	fmt.Printf("Gathered Application and Network Load Balancers across %d regions\n", len(anlbs))
 
 	result["loadbalancer"] = allLbs
-	
 	return nil
 }
 

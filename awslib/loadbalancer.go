@@ -23,7 +23,6 @@ import (
 	"github.com/jpillora/backoff"
 )
 
-
 // GetAllCLB resturns a complete list of Classic Load Balancers for a given session
 func GetAllCLB(sess *session.Session) ([]*elb.LoadBalancerDescription, error) {
 	lb := elb.New(sess)
@@ -82,7 +81,7 @@ func GetAllALBAndNLB(sess *session.Session) ([]*elbv2.LoadBalancer, error) {
 		Factor: 2,
 		Jitter: false,
 	}
-	
+
 	for !allLoadBalancersDone {
 		// Describe instances with no filters
 		result, err := lb.DescribeLoadBalancers(&input)
