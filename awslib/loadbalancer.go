@@ -40,7 +40,6 @@ func GetAllCLB(sess *session.Session) ([]*elb.LoadBalancerDescription, error) {
 	}
 
 	for !allLoadBalancersDone {
-		// Describe instances with no filters
 		result, err := lb.DescribeLoadBalancers(&input)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
@@ -83,7 +82,6 @@ func GetAllALBAndNLB(sess *session.Session) ([]*elbv2.LoadBalancer, error) {
 	}
 
 	for !allLoadBalancersDone {
-		// Describe instances with no filters
 		result, err := lb.DescribeLoadBalancers(&input)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {

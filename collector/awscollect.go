@@ -226,7 +226,7 @@ func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.Re
 func (col AWSCollector) CollectClassicLoadBalancers() (map[string][]*elb.LoadBalancerDescription, error) {
 	instances := make(map[string][]*elb.LoadBalancerDescription)
 
-	// instanceRegion is a struct that holds all LoadBalancers instances in a given region
+	// instanceRegion is a struct that holds all load balancers instances in a given region
 	type instanceRegion struct {
 		region    string
 		instances []*elb.LoadBalancerDescription
@@ -247,7 +247,7 @@ func (col AWSCollector) CollectClassicLoadBalancers() (map[string][]*elb.LoadBal
 				return
 			}
 
-			// Ignore regions with no instances
+			// Ignore regions with no load balancer instances
 			if chunk == nil {
 				return
 			}
@@ -272,7 +272,7 @@ func (col AWSCollector) CollectClassicLoadBalancers() (map[string][]*elb.LoadBal
 func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers() (map[string][]*elbv2.LoadBalancer, error) {
 	instances := make(map[string][]*elbv2.LoadBalancer)
 
-	// instanceRegion is a struct that holds all LoadBalancers instances in a given region
+	// instanceRegion is a struct that holds all load balancers instances in a given region
 	type instanceRegion struct {
 		region    string
 		instances []*elbv2.LoadBalancer
@@ -293,7 +293,7 @@ func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers() (map[string]
 				return
 			}
 
-			// Ignore regions with no instances
+			// Ignore regions with no load balancer instances
 			if chunk == nil {
 				return
 			}
