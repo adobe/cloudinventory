@@ -17,13 +17,16 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/jpillora/backoff"
+
 	"github.com/adobe/cloudinventory/awslib"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/jpillora/backoff"
 )
 
 // NewAWSCollector returns an AWSCollector with initialized sessions.
@@ -145,7 +148,7 @@ func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
 		Jitter: false,
 	}
 
-	zones := make([]*route53.HostedZone, 0);
+	zones := make([]*route53.HostedZone, 0)
 	var nextPageExists = true
 	request := &route53.ListHostedZonesInput{}
 
@@ -157,22 +160,22 @@ func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
 	r53 := route53.New(route53Session)
 
 	for nextPageExists {
-		response , err := r53.ListHostedZones(request)
+		response, err := r53.ListHostedZones(request)
 		if err != nil {
 			time.Sleep(b.Duration())
-		}else {
+		} else {
 			for recordIndex := range response.HostedZones {
-				zones = append(zones ,response.HostedZones[recordIndex]);
+				zones = append(zones, response.HostedZones[recordIndex])
 			}
 			if response.IsTruncated == nil || !*response.IsTruncated {
 				nextPageExists = false
 				break
 			}
 			// Setting next page.
-			request.Marker = response.NextMarker;
+			request.Marker = response.NextMarker
 		}
 	}
-	return zones, nil;
+	return zones, nil
 }
 
 // GetHostedZoneRecords returns the hostedzonesRecords for a particular hostedZoneId
@@ -201,10 +204,10 @@ func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.Re
 
 	for nextPageExists {
 
-		response , err := r53.ListResourceRecordSets(request)
+		response, err := r53.ListResourceRecordSets(request)
 		if err != nil {
 			time.Sleep(b.Duration())
-		}else {
+		} else {
 			records = append(records, response.ResourceRecordSets...)
 			if response.IsTruncated == nil || !*response.IsTruncated {
 				nextPageExists = false
@@ -217,6 +220,98 @@ func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.Re
 		}
 	}
 	return records, nil
+}
+
+// CollectClassicLoadBalancers returns a concurrently collected LoadBalancers inventory for all the regions
+func (col AWSCollector) CollectClassicLoadBalancers() (map[string][]*elb.LoadBalancerDescription, error) {
+	instances := make(map[string][]*elb.LoadBalancerDescription)
+
+	// instanceRegion is a struct that holds all load balancers instances in a given region
+	type instanceRegion struct {
+		region    string
+		instances []*elb.LoadBalancerDescription
+	}
+
+	instancesChan := make(chan instanceRegion, len(col.sessions))
+	errChan := make(chan error, len(col.sessions))
+	var wg sync.WaitGroup
+
+	for region, sess := range col.sessions {
+		wg.Add(1)
+		go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
+			defer wg.Done()
+			chunk, err := CollectClassicLoadBalancerPerSession(sess)
+
+			if err != nil {
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				return
+			}
+
+			// Ignore regions with no load balancer instances
+			if chunk == nil {
+				return
+			}
+			instancesChan <- instanceRegion{region, chunk}
+		}(sess, region, instancesChan, errChan)
+	}
+	wg.Wait()
+	close(instancesChan)
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", <-errChan))
+	}
+
+	for regionChunk := range instancesChan {
+		instances[regionChunk.region] = regionChunk.instances
+	}
+	return instances, nil
+}
+
+// CollectApplicationAndNetworkLoadBalancers returns a concurrently collected LoadBalancers inventory for all the regions
+func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers() (map[string][]*elbv2.LoadBalancer, error) {
+	instances := make(map[string][]*elbv2.LoadBalancer)
+
+	// instanceRegion is a struct that holds all load balancers instances in a given region
+	type instanceRegion struct {
+		region    string
+		instances []*elbv2.LoadBalancer
+	}
+
+	instancesChan := make(chan instanceRegion, len(col.sessions))
+	errChan := make(chan error, len(col.sessions))
+	var wg sync.WaitGroup
+
+	for region, sess := range col.sessions {
+		wg.Add(1)
+		go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
+			defer wg.Done()
+			chunk, err := CollectApplicationNetworkLoadBalancerPerSession(sess)
+
+			if err != nil {
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				return
+			}
+
+			// Ignore regions with no load balancer instances
+			if chunk == nil {
+				return
+			}
+			instancesChan <- instanceRegion{region, chunk}
+		}(sess, region, instancesChan, errChan)
+	}
+	wg.Wait()
+	close(instancesChan)
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", <-errChan))
+	}
+
+	for regionChunk := range instancesChan {
+		instances[regionChunk.region] = regionChunk.instances
+	}
+	return instances, nil
 }
 
 // CollectRDS returns a concurrently collected RDS inventory for all the regions
@@ -282,4 +377,16 @@ func CollectEC2PerSession(sess *session.Session) ([]*ec2.Instance, error) {
 func CollectHostedZonePerSession(sess *session.Session) ([]*route53.HostedZone, error) {
 	instances, err := awslib.GetAllHostedZones(sess)
 	return instances, err
+}
+
+// CollectClassicLoadBalancerPerSession returns an LoadBalancer inventory for a given session
+func CollectClassicLoadBalancerPerSession(sess *session.Session) ([]*elb.LoadBalancerDescription, error) {
+	loadbalancers, err := awslib.GetAllCLB(sess)
+	return loadbalancers, err
+}
+
+// CollectApplicationNetworkLoadBalancerPerSession returns an LoadBalancer inventory for a given session
+func CollectApplicationNetworkLoadBalancerPerSession(sess *session.Session) ([]*elbv2.LoadBalancer, error) {
+	loadbalancers, err := awslib.GetAllALBAndNLB(sess)
+	return loadbalancers, err
 }
