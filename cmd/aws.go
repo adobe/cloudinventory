@@ -17,10 +17,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/adobe/cloudinventory/ansible"
-	"github.com/adobe/cloudinventory/collector"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/spf13/cobra"
+	"github.com/adobe/cloudinventory/ansible"
+	"github.com/adobe/cloudinventory/collector"
 )
 
 var partition string
@@ -31,7 +31,7 @@ var ansiblePriv bool
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
 	Use:   "aws",
-	Short: "Dump AWS inventory. Currently supports EC2/RDS/Route53/LoadBalancers",
+	Short: "Dump AWS inventory. Currently supports EC2/RDS",
 	Run: func(cmd *cobra.Command, args []string) {
 		path := cmd.Flag("path").Value.String()
 		filter := cmd.Flag("filter").Value.String()
@@ -62,11 +62,6 @@ var awsCmd = &cobra.Command{
 			}
 		case "hostedzone":
 			err := collectHostedZone(col, result)
-			if err != nil {
-				return
-			}
-		case "loadbalancer":
-			err := collectLoadBalancers(col, result)
 			if err != nil {
 				return
 			}
@@ -109,7 +104,6 @@ func validateAWSFilter(filter string) bool {
 		"ec2",
 		"rds",
 		"hostedzone",
-		"loadbalancer",
 		"",
 	}
 	for _, service := range validSlice {
@@ -150,29 +144,6 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
 	}
 	fmt.Printf("Gathered RDS Instances across %d regions\n", len(instances))
 	result["rds"] = instances
-	return nil
-}
-
-func collectLoadBalancers(col collector.AWSCollector, result map[string]interface{}) error {
-
-	var allLbs []interface{}
-	clbs, err := col.CollectClassicLoadBalancers()
-	if err != nil {
-		fmt.Printf("Failed to gather classic load balancers: %v\n", err)
-		return err
-	}
-	allLbs = append(allLbs, clbs)
-	fmt.Printf("Gathered Classic Load Balancers across %d regions\n", len(clbs))
-
-	anlbs, err := col.CollectApplicationAndNetworkLoadBalancers()
-	if err != nil {
-		fmt.Printf("Failed to gather application and network load balancers: %v\n", err)
-		return err
-	}
-	allLbs = append(allLbs, anlbs)
-	fmt.Printf("Gathered Application and Network Load Balancers across %d regions\n", len(anlbs))
-
-	result["loadbalancer"] = allLbs
 	return nil
 }
 

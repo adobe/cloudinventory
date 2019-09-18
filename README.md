@@ -6,7 +6,6 @@ Current supported:
 - AWS
   - EC2
   - RDS
-  - ELB
 
 (PRs welcome for more!)
 
