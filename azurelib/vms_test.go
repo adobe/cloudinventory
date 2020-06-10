@@ -15,7 +15,7 @@ func GetAuthorizedclients(subscriptionID string) (client Clients, err error) {
         return
 }
 
-//TestGetallVMS tests function TestGetallVMS
+//TestGetallVMS tests function GetallVMS
 func TestGetallVMS(t *testing.T) {
 
         client, err := GetAuthorizedclients(subscriptionID)
