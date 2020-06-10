@@ -8,7 +8,7 @@ import (
 )
 
 
-//TestGetallVMS tests function TestGetallVMS
+//TestGetallSubscriptionIDs tests function GetallSubscriptionIDs
 func TestGetallSubscriptionIDs(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
