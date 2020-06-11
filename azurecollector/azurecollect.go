@@ -1,7 +1,7 @@
 package azurecollector
 
 import (
-        "Azure/cloudinventory/azurelib"
+        "Azure/lib/azurelib"
         "context"
         "fmt"
         "github.com/Azure/azure-sdk-for-go/services/preview/sql/mgmt/v3.0/sql"
