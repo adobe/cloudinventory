@@ -5,6 +5,7 @@ import (
         "github.com/Azure/azure-sdk-for-go/services/preview/sql/mgmt/v3.0/sql"
         "github.com/Azure/go-autorest/autorest/azure/auth"
         "strings"
+        "sync"
         "time"
 )
 
@@ -24,6 +25,7 @@ func GetallSQLDBs(subscriptionID string) (Dblist []*sql.Database, err error) {
         if err != nil {
                 return
         }
+
         for server.NotDone() {
                 result := server.Value()
                 ID := strings.Split(*result.ID, "/")
@@ -34,12 +36,23 @@ func GetallSQLDBs(subscriptionID string) (Dblist []*sql.Database, err error) {
                 if err != nil {
                         return
                 }
+                instancesChan := make(chan *sql.Database, 800)
+                var wg sync.WaitGroup
                 for result1.NotDone() {
+                        wg.Add(1)
                         db := result1.Value()
-                        Dblist = append(Dblist, &db)
+                        go func(instancesChan chan *sql.Database) {
+                                defer wg.Done()
+                                instancesChan <- &db
+                        }(instancesChan)
                         if err = result1.Next(); err != nil {
                                 return
                         }
+                }
+                wg.Wait()
+                close(instancesChan)
+                for Db := range instancesChan {
+                        Dblist = append(Dblist, Db)
                 }
                 if err = server.Next(); err != nil {
                         return
