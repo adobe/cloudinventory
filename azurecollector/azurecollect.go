@@ -1,11 +1,10 @@
 package azurecollector
 
 import (
-        //used this to import azurelib locally,needs to be changed
-        "Azure/lib/azurelib"
         "context"
         "fmt"
         "github.com/Azure/azure-sdk-for-go/services/preview/sql/mgmt/v3.0/sql"
+        "github.com/Thushara67/cloudInventoryforAzure/azurelib"
         "sync"
 )
 
