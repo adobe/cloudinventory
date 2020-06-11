@@ -1,6 +1,7 @@
 package azurecollector
 
 import (
+        //used this to import azurelib locally,needs to be changed
         "Azure/lib/azurelib"
         "context"
         "fmt"
@@ -8,10 +9,12 @@ import (
         "sync"
 )
 
+//AzureCollector is a struct that contains a map of subscription name and its subscriptionID
 type AzureCollector struct {
         Subscriptionmap map[string]string
 }
 
+//InitSubscription adds map of subscription name with subscriptionID to the AzureCollector
 func (col *AzureCollector) InitSubscription(ctx context.Context) error {
         subscription := make(map[string]string)
         var err error
@@ -24,6 +27,7 @@ func (col *AzureCollector) InitSubscription(ctx context.Context) error {
 
 }
 
+//CollectSQLDBs gathers SQL databases for each subscriptionID in an account level
 func (col AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
         DBs := make(map[string][]*sql.Database)
         type DBspersubscriptionID struct {
@@ -66,6 +70,7 @@ func (col AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
 
 }
 
+//CollectSQLDBspersubscriptionID returns a slice of SQL databases for a given subscriptionID
 func CollectSQLDBspersubscriptionID(subscriptionID string) ([]*sql.Database, error) {
 
         dblist, err := azurelib.GetallSQLDBs(subscriptionID)
