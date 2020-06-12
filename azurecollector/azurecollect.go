@@ -27,11 +27,11 @@ func (col *AzureCollector) InitSubscription(ctx context.Context) error {
 }
 
 //CollectVMS gathers all the Virtual Machines for each subscriptionID in an account level
-func CollectVMS (scol *AzureCollector) (map[string][]*VirtualMachineinfo, error){
-        subscriptionsMap := make(map[string][]*VirtualMachineinfo)
+func (col *AzureCollector) CollectVMS() (map[string][]*azurelib.VirtualMachineinfo, error){
+        subscriptionsMap := make(map[string][]*azurelib.VirtualMachineinfo)
         type subscriptionsVMS struct{
                 subscriptionName string
-                VMList []*VirtualMachineinfo
+                VMList []*azurelib.VirtualMachineinfo
         }
         
         subscriptionsChan := make(chan subscriptionsVMS, len(col.Subscriptionmap))
@@ -43,7 +43,7 @@ func CollectVMS (scol *AzureCollector) (map[string][]*VirtualMachineinfo, error)
                 go func (subscriptionName string, subscriptionID string, subscriptionsChan chan subscriptionsVMS, errChan chan error) {
                         defer wg.Done()
 
-                        VMList, err := GetallVMS(subscriptionID)
+                        VMList, err := CollectVMspersubscriptionID(subscriptionID)
                         if err != nil {
                                 errChan <- err
                                 return
@@ -61,7 +61,7 @@ func CollectVMS (scol *AzureCollector) (map[string][]*VirtualMachineinfo, error)
         }
 
         for subsVMS := range subscriptionsChan {
-                subscriptionsMap[VMList.subscriptionName] = subsVMS.VMList
+                subscriptionsMap[subsVMS.subscriptionName] = subsVMS.VMList
         }
 
         return subscriptionsMap, nil
@@ -114,5 +114,11 @@ func (col AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
 func CollectSQLDBspersubscriptionID(subscriptionID string) ([]*sql.Database, error) {
 
         dblist, err := azurelib.GetallSQLDBs(subscriptionID)
+        return dblist, err
+}
+
+func CollectVMspersubscriptionID(subscriptionID string) ([]*azurelib.VirtualMachineinfo, error) {
+
+        dblist, err := azurelib.GetallVMS(subscriptionID)
         return dblist, err
 }
