@@ -26,6 +26,47 @@ func (col *AzureCollector) InitSubscription(ctx context.Context) error {
 
 }
 
+//CollectVMS gathers all the Virtual Machines for each subscriptionID in an account level
+func CollectVMS (scol *AzureCollector) (map[string][]*VirtualMachineinfo, error){
+        subscriptionsMap := make(map[string][]*VirtualMachineinfo)
+        type subscriptionsVMS struct{
+                subscriptionName string
+                VMList []*VirtualMachineinfo
+        }
+        
+        subscriptionsChan := make(chan subscriptionsVMS, len(col.Subscriptionmap))
+        errChan := make(chan error, len(col.Subscriptionmap))
+        var wg sync.WaitGroup
+        
+        for subscriptionName, subscriptionID := range col.Subscriptionmap {
+                wg.Add(1)
+                go func (subscriptionName string, subscriptionID string, subscriptionsChan chan subscriptionsVMS, errChan chan error) {
+                        defer wg.Done()
+
+                        VMList, err := GetallVMS(subscriptionID)
+                        if err != nil {
+                                errChan <- err
+                                return
+                        }
+                        subscriptionsChan <- subscriptionsVMS{subscriptionName, VMList}
+                } (subscriptionName, subscriptionID, subscriptionsChan, errChan)
+        }
+        
+        wg.Wait()
+        close(subscriptionsChan)
+        close(errChan)
+
+        if len(errChan) > 0 {
+                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VM Data: %v", <-errChan))
+        }
+
+        for subsVMS := range subscriptionsChan {
+                subscriptionsMap[VMList.subscriptionName] = subsVMS.VMList
+        }
+
+        return subscriptionsMap, nil
+}
+
 //CollectSQLDBs gathers SQL databases for each subscriptionID in an account level
 func (col AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
         DBs := make(map[string][]*sql.Database)
