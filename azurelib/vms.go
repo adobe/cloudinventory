@@ -8,6 +8,7 @@ import (
         "github.com/Azure/go-autorest/autorest/azure/auth"
         "strings"
         "sync"
+        "time"
 )
 
 //Clients is a struct that contains all the necessary clients
@@ -54,16 +55,16 @@ func AuthorizeClients(c Clients) (Clients, error) {
         return c, nil
 }
 
-func getVMDetails(ctx context.Context, client Clients, vm compute.VirtualMachine) VirtualMachineinfo {
+func getVMDetails(ctx context.Context, client Clients, vm compute.VirtualMachine) *VirtualMachineinfo {
         var vminfo VirtualMachineinfo
         vminfo.VM = &vm
         vmresourceGroup, errvm := GetVMResourcegroup(&vm)
         if errvm != nil {
-                return vminfo
+                return &vminfo
         }
         vmnetworkinterface, errvm := GetVmnetworkinterface(&vm)
         if errvm != nil {
-                return vminfo
+                return &vminfo
         }
         vmprivateIPAddress, vmipconfig, errvm := GetPrivateIP(ctx, client, vmresourceGroup, vmnetworkinterface, "")
         if errvm == nil {
@@ -86,48 +87,48 @@ func getVMDetails(ctx context.Context, client Clients, vm compute.VirtualMachine
                         vminfo.PublicIpaddress = &vmpublicIpaddress
                 }
         }
-        return vminfo
+        return &vminfo
 }
 
 //GetallVMS function returns list of virtual machines
 func GetallVMS(subscriptionID string) (Vmlist []*VirtualMachineinfo, err error) {
 
-	cl := GetNewClients(subscriptionID)
-	client,err := AuthorizeClients(cl)
-	if err != nil {
-			return nil, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
-	vmClient := client.VMClient
-	results, err := vmClient.ListAllComplete(ctx)
-	if err != nil {
-			return nil, err
+        cl := GetNewClients(subscriptionID)
+        client, err := AuthorizeClients(cl)
+        if err != nil {
+                return nil, err
         }
-        
-	instancesChan := make(chan VirtualMachineinfo, 1000)
-	var wg sync.WaitGroup
 
-	for results.NotDone() {
+        ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+        defer cancel()
+        vmClient := client.VMClient
+        results, err := vmClient.ListAllComplete(ctx)
+        if err != nil {
+                return nil, err
+        }
+
+        instancesChan := make(chan *VirtualMachineinfo, 1000)
+        var wg sync.WaitGroup
+
+        for results.NotDone() {
                 wg.Add(1)
                 vm := results.Value()
-                go func(vm compute.VirtualMachine, client Clients, ctx context.Context, instancesChan chan VirtualMachineinfo) { 
+                go func(vm compute.VirtualMachine, client Clients, ctx context.Context, instancesChan chan *VirtualMachineinfo) {
                         defer wg.Done()
-                        instancesChan <- getVMDetails(client, vm, ctx)
-                } (vm, client, ctx, instancesChan)
-                
+                        instancesChan <- getVMDetails(ctx, client, vm)
+                }(vm, client, ctx, instancesChan)
+
                 if err = results.Next(); err != nil {
                         return
                 }
         }
         wg.Wait()
-	close(instancesChan)
-        
+        close(instancesChan)
+
         for vminfo := range instancesChan {
-                Vmlist = append(Vmlist, &vminfo)
+                Vmlist = append(Vmlist, vminfo)
         }
-	return
+        return
 }
 
 //GetVMResourcegroup function returns resourcegroup to which the virtual machine belongs to
