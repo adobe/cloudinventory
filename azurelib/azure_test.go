@@ -27,13 +27,7 @@ func TestGetallVMS(t *testing.T) {
         }
 
         for key, subsID := range subscriptions {
-                client, err := GetAuthorizedclients(subsID)
-                if err != nil {
-
-                        t.Errorf("Failed to get virtual machines for subscription: %s because %v", key, err)
-                }
-
-                Vmlist, err := GetallVMS(ctx, client)
+                Vmlist, err := GetallVMS(subsID)
                 if err != nil {
                         t.Errorf("Failed to get virtual machines for subscription: %s because %v", key, err)
                 }
