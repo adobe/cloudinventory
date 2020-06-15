@@ -8,50 +8,50 @@ import (
         "sync"
 )
 
-//AzureCollector is a struct that contains a map of subscription name and its subscriptionID
+// AzureCollector is a struct that contains a map of subscription name and its subscriptionID
 type AzureCollector struct {
-        Subscriptionmap map[string]string
+        SubscriptionMap map[string]string
 }
 
-//InitSubscription adds map of subscription name with subscriptionID to the AzureCollector
-func (col *AzureCollector) InitSubscription(ctx context.Context) error {
+// GetSubscriptions adds map of subscription name with subscriptionID to the AzureCollector
+func (col *AzureCollector) GetSubscription(ctx context.Context) error {
         subscription := make(map[string]string)
         var err error
-        subscription, err = azurelib.GetallSubscriptionIDs(ctx)
+        subscription, err = azurelib.GetAllSubscriptionIDs(ctx)
         if err != nil {
                 return err
         }
-        col.Subscriptionmap = subscription
+        col.SubscriptionMap = subscription
         return nil
 
 }
 
-//CollectVMS gathers all the Virtual Machines for each subscriptionID in an account level
-func (col *AzureCollector) CollectVMS() (map[string][]*azurelib.VirtualMachineinfo, error){
-        subscriptionsMap := make(map[string][]*azurelib.VirtualMachineinfo)
-        type subscriptionsVMS struct{
+// CollectVMS gathers all the Virtual Machines for each subscriptionID in an account level
+func (col *AzureCollector) CollectVMS() (map[string][]*azurelib.VirtualMachineInfo, error) {
+        subscriptionsMap := make(map[string][]*azurelib.VirtualMachineInfo)
+        type subscriptionsVMS struct {
                 subscriptionName string
-                VMList []*azurelib.VirtualMachineinfo
+                VMList           []*azurelib.VirtualMachineInfo
         }
-        
-        subscriptionsChan := make(chan subscriptionsVMS, len(col.Subscriptionmap))
-        errChan := make(chan error, len(col.Subscriptionmap))
+
+        subscriptionsChan := make(chan subscriptionsVMS, len(col.SubscriptionMap))
+        errChan := make(chan error, len(col.SubscriptionMap))
         var wg sync.WaitGroup
-        
-        for subscriptionName, subscriptionID := range col.Subscriptionmap {
+
+        for subscriptionName, subscriptionID := range col.SubscriptionMap {
                 wg.Add(1)
-                go func (subscriptionName string, subscriptionID string, subscriptionsChan chan subscriptionsVMS, errChan chan error) {
+                go func(subscriptionName string, subscriptionID string, subscriptionsChan chan subscriptionsVMS, errChan chan error) {
                         defer wg.Done()
 
-                        VMList, err := CollectVMspersubscriptionID(subscriptionID)
+                        VMList, err := CollectVMsPerSubscriptionID(subscriptionID)
                         if err != nil {
                                 errChan <- err
                                 return
                         }
                         subscriptionsChan <- subscriptionsVMS{subscriptionName, VMList}
-                } (subscriptionName, subscriptionID, subscriptionsChan, errChan)
+                }(subscriptionName, subscriptionID, subscriptionsChan, errChan)
         }
-        
+
         wg.Wait()
         close(subscriptionsChan)
         close(errChan)
@@ -67,23 +67,23 @@ func (col *AzureCollector) CollectVMS() (map[string][]*azurelib.VirtualMachinein
         return subscriptionsMap, nil
 }
 
-//CollectSQLDBs gathers SQL databases for each subscriptionID in an account level
-func (col AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
+// CollectSQLDBs gathers SQL databases for each subscriptionID in an account level
+func (col *AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
         DBs := make(map[string][]*sql.Database)
-        type DBspersubscriptionID struct {
+        type DBsPerSubscriptionID struct {
                 subscriptionName string
-                dblist           []*sql.Database
+                dbList           []*sql.Database
         }
-        dbsChan := make(chan DBspersubscriptionID, len(col.Subscriptionmap))
-        errChan := make(chan error, len(col.Subscriptionmap))
+        dbsChan := make(chan DBsPerSubscriptionID, len(col.SubscriptionMap))
+        errChan := make(chan error, len(col.SubscriptionMap))
 
         var wg sync.WaitGroup
 
-        for subscriptionName, subID := range col.Subscriptionmap {
+        for subscriptionName, subID := range col.SubscriptionMap {
                 wg.Add(1)
-                go func(subID string, subscriptionName string, dbsChan chan DBspersubscriptionID, errChan chan error) {
+                go func(subID string, subscriptionName string, dbsChan chan DBsPerSubscriptionID, errChan chan error) {
                         defer wg.Done()
-                        dbs, err := CollectSQLDBspersubscriptionID(subID)
+                        dbs, err := CollectSQLDBsPerSubscriptionID(subID)
                         if err != nil {
                                 errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
                                 return
@@ -91,7 +91,7 @@ func (col AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
                         if dbs == nil {
                                 return
                         }
-                        dbsChan <- DBspersubscriptionID{subscriptionName, dbs}
+                        dbsChan <- DBsPerSubscriptionID{subscriptionName, dbs}
                 }(subID, subscriptionName, dbsChan, errChan)
         }
         wg.Wait()
@@ -103,22 +103,29 @@ func (col AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
         }
 
         for subscriptionDbs := range dbsChan {
-                DBs[subscriptionDbs.subscriptionName] = subscriptionDbs.dblist
+                DBs[subscriptionDbs.subscriptionName] = subscriptionDbs.dbList
         }
 
         return DBs, nil
 
 }
 
-//CollectSQLDBspersubscriptionID returns a slice of SQL databases for a given subscriptionID
-func CollectSQLDBspersubscriptionID(subscriptionID string) ([]*sql.Database, error) {
+// CollectSQLDBsPerSubscriptionID returns a slice of SQL databases for a given subscriptionID
+func CollectSQLDBsPerSubscriptionID(subscriptionID string) ([]*sql.Database, error) {
 
-        dblist, err := azurelib.GetallSQLDBs(subscriptionID)
+        dblist, err := azurelib.GetAllSQLDBs(subscriptionID)
         return dblist, err
 }
 
-func CollectVMspersubscriptionID(subscriptionID string) ([]*azurelib.VirtualMachineinfo, error) {
+// CollectVMsPerSubscriptionID returns a slice of VirtualMachineInfo for a given subscriptionID
+func CollectVMsPerSubscriptionID(subscriptionID string) ([]*azurelib.VirtualMachineInfo, error) {
 
-        dblist, err := azurelib.GetallVMS(subscriptionID)
-        return dblist, err
+        var vmList []*azurelib.VirtualMachineInfo
+        client := azurelib.GetNewClients(subscriptionID)
+        err := client.AuthorizeClients()
+        if err != nil {
+                return vmList, err
+        }
+        vmList, err = azurelib.GetAllVMS(client)
+        return vmList, err
 }
