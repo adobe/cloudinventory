@@ -6,28 +6,32 @@ import (
         "time"
 )
 
-//AuthorizeClients function creates clients and authorizes all the clients
-func GetAuthorizedclients(subscriptionID string) (client Clients, err error) {
-        clients := GetNewClients(subscriptionID)
-        client, err = AuthorizeClients(clients)
+// AuthorizeClients function creates clients and authorizes all the clients
+func GetAuthorizedClients(subscriptionID string) (client Clients, err error) {
+        client = GetNewClients(subscriptionID)
+        err = client.AuthorizeClients()
         return
 }
 
-//TestGetallVMS tests function GetallVMS
-func TestGetallVMS(t *testing.T) {
+// TestGetAllVMS tests function GetallVMS
+func TestGetAllVMS(t *testing.T) {
         if testing.Short() {
                 t.Skip("Skipping test in short mode")
         }
         ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
         defer cancel()
 
-        subscriptions, err := GetallSubscriptionIDs(ctx)
+        subscriptions, err := GetAllSubscriptionIDs(ctx)
         if err != nil {
                 t.Errorf("Unable to get subscriptionIDs: %v", err)
         }
 
         for key, subsID := range subscriptions {
-                Vmlist, err := GetallVMS(subsID)
+                client, err := GetAuthorizedClients(subsID)
+                if err != nil {
+                        t.Errorf("Failed to get virtual machines for subscription: %s because %v", key, err)
+                }
+                Vmlist, err := GetAllVMS(client)
                 if err != nil {
                         t.Errorf("Failed to get virtual machines for subscription: %s because %v", key, err)
                 }
@@ -36,19 +40,19 @@ func TestGetallVMS(t *testing.T) {
         }
 }
 
-//TestGetallSQLDBs tests the function GetallSQLDBs
-func TestGetallSQLDBs(t *testing.T) {
+// TestGetAllSQLDBs tests the function GetallSQLDBs
+func TestGetAllSQLDBs(t *testing.T) {
         if testing.Short() {
                 t.Skip("Skipping test in short mode")
         }
         ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
         defer cancel()
-        subscriptions, err := GetallSubscriptionIDs(ctx)
+        subscriptions, err := GetAllSubscriptionIDs(ctx)
         if err != nil {
                 t.Errorf("Unable to get subscriptionIDs: %v", err)
         }
         for key, subsID := range subscriptions {
-                Dbs, err := GetallSQLDBs(subsID)
+                Dbs, err := GetAllSQLDBs(subsID)
                 if err != nil {
                         t.Errorf("Failed to get databases for subscription: %s because %v", key, err)
                 }
