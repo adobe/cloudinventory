@@ -6,6 +6,7 @@ import (
         "github.com/Azure/azure-sdk-for-go/services/preview/sql/mgmt/v3.0/sql"
         "github.com/Thushara67/cloudInventoryforAzure/azurelib"
         "sync"
+        "time"
 )
 
 // AzureCollector is a struct that contains a map of subscription name and its subscriptionID
@@ -13,7 +14,19 @@ type AzureCollector struct {
         SubscriptionMap map[string]string
 }
 
-// GetSubscriptions adds map of subscription name with subscriptionID to the AzureCollector
+// NewAzureCollector returns an AzureCollector with subscription info set in subscriptionMap.
+func NewAzureCollector() (AzureCollector, error) {
+        var col AzureCollector
+        ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+        defer cancel()
+        err := col.GetSubscription(ctx)
+        if err != nil {
+                return col, err
+        }
+        return col, nil
+}
+
+// GetSubscription adds map of subscription name with subscriptionID to the AzureCollector
 func (col *AzureCollector) GetSubscription(ctx context.Context) error {
         subscription := make(map[string]string)
         var err error
