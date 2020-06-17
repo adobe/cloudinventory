@@ -21,15 +21,22 @@ type Clients struct {
         VMClient compute.VirtualMachinesClient
 }
 
-// VirtualMachineInfo is a  struct  that contains information related to a virtual machine
-type VirtualMachineInfo struct {
-        VM                  *compute.VirtualMachine
+type additional_info struct {
+        ResourceGroup       string
         PrivateIPAddress    string
         PublicIPName        string
         PublicIPAddress     string
         VirtualnetAndSubnet string
+        VNet                string
+        SubNet              string
         IPConfig            string
         DNS                 string
+}
+
+// VirtualMachineInfo is a  struct  that contains information related to a virtual machine
+type VirtualMachineInfo struct {
+        Basic_info          *compute.VirtualMachine
+        Additional_info     additional_info
 }
 
 // GetNewClients function returns a New Client
@@ -58,34 +65,37 @@ func (c *Clients) AuthorizeClients() error {
 // getVMDetails funtion returns struct VirtualMachineInfo for a given virtual machine
 func getVMDetails(ctx context.Context, client Clients, vm compute.VirtualMachine) *VirtualMachineInfo {
         var vmInfo VirtualMachineInfo
-        vmInfo.VM = &vm
+        vmInfo.Basic_info = &vm
         vmResourceGroup, errVM := GetVMResourceGroup(&vm)
         if errVM != nil {
                 return &vmInfo
         }
+        vmInfo.Additional_info.ResourceGroup = vmResourceGroup
         vmNetworkInterface, errVM := GetVMNetworkInterface(&vm)
         if errVM != nil {
                 return &vmInfo
         }
         vmPrivateIPAddress, vmIPConfig, errVM := GetPrivateIP(ctx, client.VMInterface, vmResourceGroup, vmNetworkInterface, "")
         if errVM == nil {
-                vmInfo.PrivateIPAddress = vmPrivateIPAddress
-                vmInfo.IPConfig = vmIPConfig
+                vmInfo.Additional_info.PrivateIPAddress = vmPrivateIPAddress
+                vmInfo.Additional_info.IPConfig = vmIPConfig
         }
-        vmVirtualnetandSubnet, errVM := GetSubnetAndVirtualNetwork(ctx, client.VMInterface, vmResourceGroup, vmNetworkInterface, "")
+        vmVirtualnetandSubnet, vNet, subNet, errVM := GetSubnetAndVirtualNetwork(ctx, client.VMInterface, vmResourceGroup, vmNetworkInterface, "")
         if errVM == nil {
-                vmInfo.VirtualnetAndSubnet = vmVirtualnetandSubnet
+                vmInfo.Additional_info.VirtualnetAndSubnet = vmVirtualnetandSubnet
+                vmInfo.Additional_info.VNet = vNet
+                vmInfo.Additional_info.SubNet = subNet
         }
         vmDNS, errVM := GetDNS(ctx, client.VMPublicIP, vmResourceGroup, vmNetworkInterface, "")
         if errVM == nil {
-                vmInfo.DNS = vmDNS
+                vmInfo.Additional_info.DNS = vmDNS
         }
         vmPublicIPName, errVM := GetPublicIPAddressID(ctx, client.VMInterface, vmResourceGroup, vmNetworkInterface, "")
         if errVM == nil {
-                vmInfo.PublicIPName = vmPublicIPName
+                vmInfo.Additional_info.PublicIPName = vmPublicIPName
                 vmPublicIPAddress, errVM := GetPublicIPAddress(ctx, client.VMPublicIP, vmResourceGroup, vmPublicIPName, "")
                 if errVM == nil {
-                        vmInfo.PublicIPAddress = vmPublicIPAddress
+                        vmInfo.Additional_info.PublicIPAddress = vmPublicIPAddress
                 }
         }
         return &vmInfo
@@ -285,7 +295,8 @@ func GetPublicIPAddress(ctx context.Context, vmPublicIP network.PublicIPAddresse
 
 // GetSubnetAndVirtualNetwork function returns the virtual network and subnet
 func GetSubnetAndVirtualNetwork(ctx context.Context, vmInterface network.InterfacesClient,
-        resourceGroup string, networkInterface string, expand string) (virtualNetworkAndSubnet string, err error) {
+        resourceGroup string, networkInterface string, expand string) (virtualNetworkAndSubnet string,
+        vNet string, subNet string, err error) {
         interfaces, err := vmInterface.Get(ctx, resourceGroup, networkInterface, expand)
         if err != nil {
                 return
@@ -295,6 +306,8 @@ func GetSubnetAndVirtualNetwork(ctx context.Context, vmInterface network.Interfa
         if interfID.Subnet != nil {
                 ID := strings.Split(*interfID.Subnet.ID, "/")
                 virtualNetworkAndSubnet = ID[8] + "/" + ID[10]
+                vNet = ID[8]
+                subNet = ID[10]
         } else {
                 err = errors.New("Vm has no virtual network and subnet")
         }
