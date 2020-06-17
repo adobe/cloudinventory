@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"github.com/Thushara67/cloudInventoryforAzure/azurecollector"
-	"github.com/spf13/cobra"
+        "github.com/adobe/cloudinventory/azurecollector"
+        "github.com/spf13/cobra"
 )
 // azureCmd represents the azure command
 var azureCmd = &cobra.Command{
