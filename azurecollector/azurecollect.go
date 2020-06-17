@@ -3,8 +3,8 @@ package azurecollector
 import (
         "context"
         "fmt"
+        "github.com/adobe/cloudinventory/azurelib"
         "github.com/Azure/azure-sdk-for-go/services/preview/sql/mgmt/v3.0/sql"
-        "github.com/Thushara67/cloudInventoryforAzure/azurelib"
         "sync"
         "time"
 )
