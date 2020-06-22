@@ -13,7 +13,7 @@ func GetAuthorizedClients(subscriptionID string) (client Clients, err error) {
         return
 }
 
-// TestGetAllVMS tests function GetallVMS
+// TestGetAllVMS tests function GetAllVMS
 func TestGetAllVMS(t *testing.T) {
         if testing.Short() {
                 t.Skip("Skipping test in short mode")
@@ -40,7 +40,7 @@ func TestGetAllVMS(t *testing.T) {
         }
 }
 
-// TestGetAllSQLDBs tests the function GetallSQLDBs
+// TestGetAllSQLDBs tests the function GetAllSQLDBs
 func TestGetAllSQLDBs(t *testing.T) {
         if testing.Short() {
                 t.Skip("Skipping test in short mode")
@@ -57,5 +57,25 @@ func TestGetAllSQLDBs(t *testing.T) {
                         t.Errorf("Failed to get databases for subscription: %s because %v", key, err)
                 }
                 t.Logf("Found %d databases in %s", len(Dbs), key)
+        }
+}
+
+// TestGetAllLdb tests the function GetAllLdb
+func TestGetAllLdb(t *testing.T) {
+        if testing.Short() {
+                t.Skip("Skipping test in short mode")
+        }
+        ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+        defer cancel()
+        subscriptions, err := GetAllSubscriptionIDs(ctx)
+        if err != nil {
+                t.Errorf("Unable to get subscriptionIDs: %v", err)
+        }
+        for key, subsID := range subscriptions {
+                Ldb, err := GetAllLdb(subsID)
+                if err != nil {
+                        t.Errorf("Failed to get loadbalancers for subscription: %s because %v", key, err)
+                }
+                t.Logf("Found %d loadbalancers in %s", len(Ldb), key)
         }
 }
