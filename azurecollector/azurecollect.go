@@ -121,6 +121,50 @@ func (col *AzureCollector) CollectSQLDBs() (map[string][]*azurelib.SQLDBInfo, er
         return DBs, nil
 
 }
+
+// CollectLoadBalancers gathers Load Balancers for each subscriptionID in an account level
+func (col *AzureCollector) CollectLoadBalancers() (map[string][]*network.LoadBalancer, error) {
+	LDBs := make(map[string][]*network.LoadBalancer)
+	type LoadBalancersPerSubscriptionID struct {
+			SubscriptionName string
+			LdbList           []*network.LoadBalancer
+	}
+	ldbsChan := make(chan LoadBalancersPerSubscriptionID, len(col.SubscriptionMap))
+	errChan := make(chan error, len(col.SubscriptionMap))
+	var wg sync.WaitGroup
+	for subscriptionName, subID := range col.SubscriptionMap {
+			wg.Add(1)
+			go func(subID string, subscriptionName string, ldbsChan chan LoadBalancersPerSubscriptionID, errChan chan error) {
+					defer wg.Done()
+					ldbs, err := CollectLoadBalancersPerSubscriptionID(subID)
+					if err != nil {
+							errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
+							return
+					}
+					if ldbs == nil {
+							return
+					}
+					ldbsChan <- LoadBalancersPerSubscriptionID{subscriptionName, ldbs}
+			}(subID, subscriptionName, ldbsChan, errChan)
+	}
+	wg.Wait()
+	close(ldbsChan)
+	close(errChan)
+	if len(errChan) > 0 {
+			return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQL databases Data: %v", <-errChan))
+	}
+	for subscriptionLDBs := range ldbsChan {
+			LDBs[subscriptionLDBs.SubscriptionName] = subscriptionLDBs.LdbList
+	}
+	return LDBs, nil
+}
+
+// CollectLoadBalancersPerSubscriptionID returns a slice of Load Balancers for a given subscriptionID
+func CollectLoadBalancersPerSubscriptionID(subscriptionID string) ([]*network.LoadBalancer, error) {
+	ldblist, err := azurelib.GetAllLdb(subscriptionID)
+	return ldblist, err
+}
+
 // CollectSQLDBsPerSubscriptionID returns a slice of SQL databases for a given subscriptionID
 func CollectSQLDBsPerSubscriptionID(subscriptionID string) ([]*azurelib.SQLDBInfo, error) {
 
