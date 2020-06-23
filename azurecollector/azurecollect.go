@@ -81,11 +81,11 @@ func (col *AzureCollector) CollectVMS() (map[string][]*azurelib.VirtualMachineIn
 }
 
 // CollectSQLDBs gathers SQL databases for each subscriptionID in an account level
-func (col *AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
-        DBs := make(map[string][]*sql.Database)
+func (col *AzureCollector) CollectSQLDBs() (map[string][]*azurelib.SQLDBInfo, error) {
+        DBs := make(map[string][]*azurelib.SQLDBInfo)
         type DBsPerSubscriptionID struct {
                 subscriptionName string
-                dbList           []*sql.Database
+                dbList           []*azurelib.SQLDBInfo
         }
         dbsChan := make(chan DBsPerSubscriptionID, len(col.SubscriptionMap))
         errChan := make(chan error, len(col.SubscriptionMap))
@@ -122,9 +122,8 @@ func (col *AzureCollector) CollectSQLDBs() (map[string][]*sql.Database, error) {
         return DBs, nil
 
 }
-
 // CollectSQLDBsPerSubscriptionID returns a slice of SQL databases for a given subscriptionID
-func CollectSQLDBsPerSubscriptionID(subscriptionID string) ([]*sql.Database, error) {
+func CollectSQLDBsPerSubscriptionID(subscriptionID string) ([]*azurelib.SQLDBInfo, error) {
 
         dblist, err := azurelib.GetAllSQLDBs(subscriptionID)
         return dblist, err
