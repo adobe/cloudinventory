@@ -9,8 +9,17 @@ import (
         "time"
 )
 
+type additionalInfo struct {
+        ResourceGroup string
+        ServerName    string
+}
+type SQLDBInfo struct {
+        BasicInfo      *sql.Database
+        AdditionalInfo additionalInfo
+}
+
 // GetAllSQLDBs function returns list of SQL databases for a given subscriptionID
-func GetAllSQLDBs(subscriptionID string) (DBList []*sql.Database, err error) {
+func GetAllSQLDBs(subscriptionID string) (DBList []*SQLDBInfo, err error) {
         authorizer, err := auth.NewAuthorizerFromEnvironment()
         if err != nil {
                 return
@@ -36,14 +45,20 @@ func GetAllSQLDBs(subscriptionID string) (DBList []*sql.Database, err error) {
                 if err != nil {
                         return
                 }
-                instancesChan := make(chan *sql.Database, 800)
+                instancesChan := make(chan *SQLDBInfo, 800)
                 var wg sync.WaitGroup
                 for results.NotDone() {
                         wg.Add(1)
+                        var dbInfo SQLDBInfo
+                        var addInfo additionalInfo
+                        addInfo.ResourceGroup = resourceGroup
+                        addInfo.ServerName = serverName
+                        dbInfo.AdditionalInfo = addInfo
                         db := results.Value()
-                        go func(instancesChan chan *sql.Database) {
+                        dbInfo.BasicInfo = &db
+                        go func(instancesChan chan *SQLDBInfo) {
                                 defer wg.Done()
-                                instancesChan <- &db
+                                instancesChan <- &dbInfo
                         }(instancesChan)
                         if err = results.Next(); err != nil {
                                 return
