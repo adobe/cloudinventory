@@ -13,7 +13,7 @@ func TestCollectSQLDBs(t *testing.T) {
         }
         _, err = col.CollectSQLDBs()
         if err != nil {
-                t.Errorf("Failed to collect SQL databases: %v", err)
+                t.Errorf("Failed to collect SQL Databases: %v", err)
         }
 }
 
@@ -28,6 +28,21 @@ func TestCollectVMS(t *testing.T) {
         }
         _, err = col.CollectVMS()
         if err != nil {
-                t.Errorf("Failed to collect virtual machines: %v", err)
+                t.Errorf("Failed to collect Virtual Machines: %v", err)
+        }
+}
+
+// TestCollectLoadBalancers test the function CollectLoadBalancers
+func TestCollectLoadBalancers(t *testing.T) {
+        if testing.Short() {
+                t.Skip("Skipping test in short mode")
+        }
+        col, err := NewAzureCollector()
+        if err != nil {
+                t.Errorf("Failed to create collector: %v", err)
+        }
+        _, err = col.CollectLoadBalancers()
+        if err != nil {
+                t.Errorf("Failed to collect Load Balancers: %v", err)
         }
 }
