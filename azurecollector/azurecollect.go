@@ -4,7 +4,6 @@ import (
         "context"
         "fmt"
         "github.com/adobe/cloudinventory/azurelib"
-        "github.com/Azure/azure-sdk-for-go/services/preview/sql/mgmt/v3.0/sql"
         "sync"
         "time"
 )
