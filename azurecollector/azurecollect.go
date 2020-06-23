@@ -4,6 +4,7 @@ import (
         "context"
         "fmt"
         "github.com/adobe/cloudinventory/azurelib"
+	"github.com/Azure/azure-sdk-for-go/profiles/2019-03-01/network/mgmt/network"
         "sync"
         "time"
 )
