@@ -152,7 +152,7 @@ func (col *AzureCollector) CollectLoadBalancers() (map[string][]*network.LoadBal
 	close(ldbsChan)
 	close(errChan)
 	if len(errChan) > 0 {
-			return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQL databases Data: %v", <-errChan))
+			return nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", <-errChan))
 	}
 	for subscriptionLDBs := range ldbsChan {
 			LDBs[subscriptionLDBs.SubscriptionName] = subscriptionLDBs.LdbList
