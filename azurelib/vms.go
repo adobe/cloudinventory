@@ -35,8 +35,8 @@ type additional_info struct {
 
 // VirtualMachineInfo is a  struct  that contains information related to a virtual machine
 type VirtualMachineInfo struct {
-        Basic_info          *compute.VirtualMachine
-        Additional_info     additional_info
+        Basic_info      *compute.VirtualMachine
+        Additional_info additional_info
 }
 
 // GetNewClients function returns a New Client
@@ -110,27 +110,32 @@ func GetAllVMS(client Clients) (VMList []*VirtualMachineInfo, err error) {
         if err != nil {
                 return nil, err
         }
+        chanCapacity := 1000
+        isNotDone := true
+        for isNotDone {
 
-        instancesChan := make(chan *VirtualMachineInfo, 1000)
-        var wg sync.WaitGroup
+                instancesChan := make(chan *VirtualMachineInfo, chanCapacity)
+                var wg sync.WaitGroup
+                for vmCount := 0; results.NotDone() && vmCount < chanCapacity; vmCount++ {
+                        wg.Add(1)
+                        vm := results.Value()
+                        go func(vm compute.VirtualMachine, client Clients, ctx context.Context, instancesChan chan *VirtualMachineInfo) {
+                                defer wg.Done()
+                                instancesChan <- getVMDetails(ctx, client, vm)
+                        }(vm, client, ctx, instancesChan)
 
-        for results.NotDone() {
-                wg.Add(1)
-                vm := results.Value()
-                go func(vm compute.VirtualMachine, client Clients, ctx context.Context, instancesChan chan *VirtualMachineInfo) {
-                        defer wg.Done()
-                        instancesChan <- getVMDetails(ctx, client, vm)
-                }(vm, client, ctx, instancesChan)
+                        if err = results.Next(); err != nil {
+                                return
+                        }
 
-                if err = results.Next(); err != nil {
-                        return
                 }
-        }
-        wg.Wait()
-        close(instancesChan)
+                isNotDone = results.NotDone()
+                wg.Wait()
+                close(instancesChan)
+                for vmInfo := range instancesChan {
+                        VMList = append(VMList, vmInfo)
+                }
 
-        for vmInfo := range instancesChan {
-                VMList = append(VMList, vmInfo)
         }
         return
 }
