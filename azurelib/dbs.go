@@ -10,8 +10,9 @@ import (
 )
 
 type additionalInfo struct {
-        ResourceGroup string
-        ServerName    string
+        SubscriptionID string
+        ResourceGroup  string
+        ServerName     string
 }
 type SQLDBInfo struct {
         BasicInfo      *sql.Database
@@ -53,6 +54,7 @@ func GetAllSQLDBs(subscriptionID string) (DBList []*SQLDBInfo, err error) {
                         var addInfo additionalInfo
                         addInfo.ResourceGroup = resourceGroup
                         addInfo.ServerName = serverName
+                        addInfo.SubscriptionID = subscriptionID
                         dbInfo.AdditionalInfo = addInfo
                         db := results.Value()
                         dbInfo.BasicInfo = &db
