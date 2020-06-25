@@ -1,4 +1,4 @@
-package azurelib
+package azurenetwork
 
 import (
         "context"
