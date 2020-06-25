@@ -13,6 +13,8 @@ import (
 
 // Clients is a struct that contains all the necessary clients
 type Clients struct {
+        // Subscription ID
+        SubscriptionID string
         // Network Interface Client
         VMInterface network.InterfacesClient
         // Public IP Addresses Client
@@ -21,7 +23,9 @@ type Clients struct {
         VMClient compute.VirtualMachinesClient
 }
 
-type additional_info struct {
+// AdditionalInfo is a struct that contains extra information regarding the VM (obtained from other clients)
+type AdditionalInfo struct {
+        SubscriptionID      string
         ResourceGroup       string
         PrivateIPAddress    string
         PublicIPName        string
@@ -36,7 +40,7 @@ type additional_info struct {
 // VirtualMachineInfo is a  struct  that contains information related to a virtual machine
 type VirtualMachineInfo struct {
         Basic_info      *compute.VirtualMachine
-        Additional_info additional_info
+        Additional_info AdditionalInfo
 }
 
 // GetNewClients function returns a New Client
@@ -46,7 +50,7 @@ func GetNewClients(subscriptionID string) Clients {
         VMPublicIP := network.NewPublicIPAddressesClient(subscriptionID)
         VMClient := compute.NewVirtualMachinesClient(subscriptionID)
 
-        c := Clients{VMInterface, VMPublicIP, VMClient}
+        c := Clients{subscriptionID, VMInterface, VMPublicIP, VMClient}
         return c
 }
 
@@ -70,6 +74,7 @@ func getVMDetails(ctx context.Context, client Clients, vm compute.VirtualMachine
         if errVM != nil {
                 return &vmInfo
         }
+        vmInfo.Additional_info.SubscriptionID = client.SubscriptionID
         vmInfo.Additional_info.ResourceGroup = vmResourceGroup
         vmNetworkInterface, errVM := GetVMNetworkInterface(&vm)
         if errVM != nil {
