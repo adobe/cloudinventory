@@ -6,26 +6,44 @@ import (
         "github.com/adobe/cloudinventory/azurecollector"
         "github.com/spf13/cobra"
         "io/ioutil"
+        "strings"
 )
 
 // azureCmd represents the azure command
 var azureCmd = &cobra.Command{
         Use:   "azure",
-        Short: "Dump Azure inventory. Currently supports Virtual Machines/SQL databases",
+        Short: "Dump Azure inventory. Currently supports Virtual Machines/SQL databases/Load balancers",
         Run: func(cmd *cobra.Command, args []string) {
                 path := cmd.Flag("path").Value.String()
                 filter := cmd.Flag("filter").Value.String()
+                inputPath := cmd.Flag("inputPath").Value.String()
                 if !validateAzureFilter(filter) {
                         fmt.Printf("Invalid filter selected, please select a supported Azure service")
                         return
                 }
+                var col azurecollector.AzureCollector
+                var err error
+                if inputPath != "" {
+                        data, err := ioutil.ReadFile(inputPath)
+                        if err != nil {
+                                fmt.Println("File reading error", err)
+                                return
+                        }
+                        s := string(data)
+                        subID := strings.Split(s, " ")
+                        col, err = azurecollector.NewAzureCollectorUserDefined(subID)
+                        if err != nil {
+                                fmt.Printf("Failed to create Azure collector: %v\n", err)
+                                return
+                        }
 
-                col, err := azurecollector.NewAzureCollector()
-                if err != nil {
-                        fmt.Printf("Failed to create Azure collector: %v\n", err)
-                        return
+                } else {
+                        col, err = azurecollector.NewAzureCollector()
+                        if err != nil {
+                                fmt.Printf("Failed to create Azure collector: %v\n", err)
+                                return
+                        }
                 }
-
                 // Create a map per service
                 result := make(map[string]interface{})
 
@@ -112,10 +130,11 @@ func collectLDB(col azurecollector.AzureCollector, result map[string]interface{}
                 return err
         }
         fmt.Printf("Gathered load balancers across %d subscriptions\n", len(instances))
-        result["ldb"] = instances
+        result["loadbalancer"] = instances
         return nil
 }
 
 func init() {
         dumpCmd.AddCommand(azureCmd)
+        azureCmd.PersistentFlags().StringP("inputPath", "i", "", "file path to dump the inventory in")
 }
