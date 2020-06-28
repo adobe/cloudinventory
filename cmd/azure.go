@@ -136,5 +136,5 @@ func collectLDB(col azurecollector.AzureCollector, result map[string]interface{}
 
 func init() {
         dumpCmd.AddCommand(azureCmd)
-        azureCmd.PersistentFlags().StringP("inputPath", "i", "", "file path to dump the inventory in")
+        azureCmd.PersistentFlags().StringP("inputPath", "i", "", "file path to take subscriptionIDs as input")
 }
