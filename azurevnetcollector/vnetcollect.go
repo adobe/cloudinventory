@@ -5,6 +5,7 @@ import (
         "fmt"
         "github.com/adobe/cloudinventory/azurenetwork"
         "github.com/Azure/azure-sdk-for-go/profiles/2019-03-01/network/mgmt/network"
+        "strconv"
         "sync"
         "time"
 )
@@ -23,6 +24,18 @@ func NewAzureCollector() (AzureCollector, error) {
         if err != nil {
                 return col, err
         }
+        return col, nil
+}
+
+// NewAzureCollectorUserDefined returns an AzureCollector with subscription info given by user in subscriptionMap.
+func NewAzureCollectorUserDefined(subscriptionID []string) (AzureCollector, error) {
+        var col AzureCollector
+        subID := make(map[string]string)
+        for i := 0; i < len(subscriptionID); i++ {
+                s := strconv.Itoa(i)
+                subID["SubscriptionID "+s+" : "+subscriptionID[i]] = subscriptionID[i]
+        }
+        col.SubscriptionMap = subID
         return col, nil
 }
 
