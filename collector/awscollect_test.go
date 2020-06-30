@@ -87,6 +87,30 @@ func TestCollectRDS(t *testing.T) {
 	}
 }
 
+// TestCollectCloudFront tries to gather cloud front instances across all regions
+func TestCollectCloudFront(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+	col, err := NewAWSCollector("default", nil)
+	if err != nil {
+		t.Errorf("Failed to create default collector: %v", err)
+	}
+	ii, err := col.CollectCloudFront()
+	if err != nil {
+		// Improve this test, right now, does not test anything of note
+		t.Errorf("Failed to collect cloud front instances: %v", err)
+	}
+	// Depending on the Account, the map should contain one of the following regions
+	if len(ii) != 0 {
+		for r := range ii {
+			if !stringInSlice(r, awslib.GetAllRegions()) {
+				t.Errorf("Found rougue region in instances")
+			}
+		}
+	}
+}
+
 func stringInSlice(a string, list []string) bool {
 	for _, b := range list {
 		if b == a {
