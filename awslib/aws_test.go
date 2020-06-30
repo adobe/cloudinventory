@@ -59,3 +59,22 @@ func TestGetAllDBInstances(t *testing.T) {
 		t.Logf("Found %d instances in %s", len(dbinstances), r)
 	}
 }
+
+// TestGetAllCDNInstances checks if the lib is able to gather all instances properly or not.
+func TestGetAllCDNInstances(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+	sessions, err := BuildSessions(GetAllRegions())
+	if err != nil {
+		t.Errorf("Unable to get sessions : %v", err)
+	}
+	for r, sess := range sessions {
+		cdninstances, err := GetAllCDNInstances(sess)
+		if err != nil {
+			t.Errorf("Failed to get Instances for region: %s because %v", r, err)
+		}
+		t.Logf("Found %d instances in %s", len(cdninstances), r)
+	}
+}
+
