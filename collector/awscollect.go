@@ -48,6 +48,24 @@ func NewAWSCollector(partition string, creds *credentials.Credentials) (AWSColle
 	return col, nil
 }
 
+// NewAWSCollectorUserDefined function takes list of regions from user as input. 
+// It returns an AWSCollector with initialized sessions.
+func NewAWSCollectorUserDefined(regions []string, creds *credentials.Credentials) (AWSCollector, error) {
+        var col AWSCollector
+        if regions == nil {
+                return col, fmt.Errorf("Invalid Region Selected")
+        }
+        err := col.initSessions(regions, creds)
+        if err != nil {
+                return col, err
+        }
+        if !col.CheckCredentials() {
+                return col, fmt.Errorf("Error obtaining AWS Credentials")
+        }
+
+        return col, nil
+}
+
 // AWSCollector is a concurrent inventory collection struct for Amazon Web Services
 type AWSCollector struct {
 	sessions map[string]*session.Session
