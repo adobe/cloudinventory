@@ -32,7 +32,7 @@ var ansiblePriv bool
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
         Use:   "aws",
-        Short: "Dump AWS inventory. Currently supports EC2/RDS/Route53/LoadBalancers",
+        Short: "Dump AWS inventory. Currently supports EC2/RDS/Route53/LoadBalancers/CloudFront",
         Run: func(cmd *cobra.Command, args []string) {
                 path := cmd.Flag("path").Value.String()
                 filter := cmd.Flag("filter").Value.String()
@@ -89,6 +89,11 @@ var awsCmd = &cobra.Command{
                         if err != nil {
                                 return
                         }
+                case "cloudfront":
+                        err := collectCloudFront(col, result)
+                        if err != nil {
+                                return
+                        }
                 default:
                         err := collectEC2(col, result)
                         if err != nil {
@@ -126,6 +131,7 @@ var awsCmd = &cobra.Command{
 func validateAWSFilter(filter string) bool {
         validSlice := []string{
                 "ec2",
+                "cloudfront",
                 "rds",
                 "hostedzone",
                 "loadbalancer",
@@ -158,6 +164,17 @@ func collectHostedZone(col collector.AWSCollector, result map[string]interface{}
         }
         fmt.Printf("Gathered HostedZone data across all regions\n")
         result["hostedzones"] = instances
+        return nil
+}
+
+func collectCloudFront(col collector.AWSCollector, result map[string]interface{}) error {
+        instances, err := col.CollectCloudFront()
+        if err != nil {
+                fmt.Printf("Failed to gather RDS Data: %v\n", err)
+                return err
+        }
+        fmt.Printf("Gathered cloudfront Instances across %d regions\n", len(instances))
+        result["cdn"] = instances
         return nil
 }
 
