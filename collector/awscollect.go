@@ -21,6 +21,7 @@ import (
 	"github.com/adobe/cloudinventory/awslib"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudfront"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -332,6 +333,54 @@ func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers() (map[string]
 	return instances, nil
 }
 
+// CollectCloudFront returns a concurrently collected cloud front inventory for all the regions
+func (col AWSCollector) CollectCloudFront() (map[string][]*cloudfront.DistributionSummary, error) {
+	instances := make(map[string][]*cloudfront.DistributionSummary)
+
+	// instanceRegion is a struct that holds all CloudFront instances in a given region
+	type instanceRegion struct {
+		region    string
+		instances []*cloudfront.DistributionSummary
+	}
+
+	instancesChan := make(chan instanceRegion, len(col.sessions))
+	errChan := make(chan error, len(col.sessions))
+	var wg sync.WaitGroup
+
+	for region, sess := range col.sessions {
+		wg.Add(1)
+		go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
+			defer wg.Done()
+			chunk, err := CollectCloudFrontPerSession(sess)
+
+			if err != nil {
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				return
+			}
+
+			// Ignore regions with no instances
+			if chunk == nil {
+				return
+			}
+			instancesChan <- instanceRegion{region, chunk}
+		}(sess, region, instancesChan, errChan)
+	}
+	wg.Wait()
+	close(instancesChan)
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather CloudFront Data: %v", <-errChan))
+	}
+
+	for regionChunk := range instancesChan {
+		instances[regionChunk.region] = regionChunk.instances
+	}
+	return instances, nil
+
+}
+
+
 // CollectRDS returns a concurrently collected RDS inventory for all the regions
 func (col AWSCollector) CollectRDS() (map[string][]*rds.DBInstance, error) {
 	instances := make(map[string][]*rds.DBInstance)
@@ -388,6 +437,12 @@ func CollectRDSPerSession(sess *session.Session) ([]*rds.DBInstance, error) {
 // CollectEC2PerSession returns an EC2 inventory for a given session
 func CollectEC2PerSession(sess *session.Session) ([]*ec2.Instance, error) {
 	instances, err := awslib.GetAllInstances(sess)
+	return instances, err
+}
+
+// CollectCloudFrontPerSession returns an CloudFront inventory for a given session
+func CollectCloudFrontPerSession(sess *session.Session) ([]*cloudfront.DistributionSummary, error) {
+	instances, err := awslib.GetAllCDNInstances(sess)
 	return instances, err
 }
 
