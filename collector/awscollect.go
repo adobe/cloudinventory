@@ -333,6 +333,98 @@ func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers() (map[string]
 	return instances, nil
 }
 
+// CollectVPC returns a concurrently collected Vpc inventory for all the regions
+func (col AWSCollector) CollectVPC() (map[string][]*ec2.Vpc, error) {
+	instances := make(map[string][]*ec2.Vpc)
+
+	// instanceRegion is a struct that holds all Vpc instances in a given region
+	type instanceRegion struct {
+		region    string
+		instances []*ec2.Vpc
+	}
+
+	instancesChan := make(chan instanceRegion, len(col.sessions))
+	errChan := make(chan error, len(col.sessions))
+	var wg sync.WaitGroup
+
+	for region, sess := range col.sessions {
+		wg.Add(1)
+		go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
+			defer wg.Done()
+			chunk, err := CollectVPCPerSession(sess)
+
+			if err != nil {
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				return
+			}
+
+			// Ignore regions with no Vpc instances
+			if chunk == nil {
+				return
+			}
+			instancesChan <- instanceRegion{region, chunk}
+		}(sess, region, instancesChan, errChan)
+	}
+	wg.Wait()
+	close(instancesChan)
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather Vpc Data: %v", <-errChan))
+	}
+
+	for regionChunk := range instancesChan {
+		instances[regionChunk.region] = regionChunk.instances
+	}
+	return instances, nil
+}
+
+// CollectSubnets returns a concurrently collected Subnets inventory for all the regions
+func (col AWSCollector) CollectSubnets() (map[string][]*ec2.Subnet, error) {
+	instances := make(map[string][]*ec2.Subnet)
+
+	// instanceRegion is a struct that holds all subnet instances in a given region
+	type instanceRegion struct {
+		region    string
+		instances []*ec2.Subnet
+	}
+
+	instancesChan := make(chan instanceRegion, len(col.sessions))
+	errChan := make(chan error, len(col.sessions))
+	var wg sync.WaitGroup
+
+	for region, sess := range col.sessions {
+		wg.Add(1)
+		go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
+			defer wg.Done()
+			chunk, err := CollectSubnetPerSession(sess)
+
+			if err != nil {
+				errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
+				return
+			}
+
+			// Ignore regions with no subnets instances
+			if chunk == nil {
+				return
+			}
+			instancesChan <- instanceRegion{region, chunk}
+		}(sess, region, instancesChan, errChan)
+	}
+	wg.Wait()
+	close(instancesChan)
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return nil, fmt.Errorf(fmt.Sprintf("Failed to gather Subnets Data: %v", <-errChan))
+	}
+
+	for regionChunk := range instancesChan {
+		instances[regionChunk.region] = regionChunk.instances
+	}
+	return instances, nil
+}
+
 // CollectCloudFront returns a concurrently collected cloud front inventory for all the regions
 func (col AWSCollector) CollectCloudFront() (map[string][]*cloudfront.DistributionSummary, error) {
 	instances := make(map[string][]*cloudfront.DistributionSummary)
@@ -446,7 +538,19 @@ func CollectCloudFrontPerSession(sess *session.Session) ([]*cloudfront.Distribut
 	return instances, err
 }
 
-// CollectEC2PerSession returns an EC2 inventory for a given session
+// CollectVPCPerSession returns an Vpc inventory for a given session
+func CollectVPCPerSession(sess *session.Session) ([]*ec2.Vpc, error) {
+	instances, err := awslib.GetAllVPCInstances(sess)
+	return instances, err
+}
+
+// CollectSubnetPerSession returns an Subnets inventory for a given session
+func CollectSubnetPerSession(sess *session.Session) ([]*ec2.Subnet, error) {
+	instances, err := awslib.GetAllSubnetInstances(sess)
+	return instances, err
+}
+
+// CollectHostedZonePerSession returns an EC2 inventory for a given session
 func CollectHostedZonePerSession(sess *session.Session) ([]*route53.HostedZone, error) {
 	instances, err := awslib.GetAllHostedZones(sess)
 	return instances, err
