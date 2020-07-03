@@ -78,3 +78,38 @@ func TestGetAllCDNInstances(t *testing.T) {
 	}
 }
 
+// TestGetAllSubnetInstances checks if the lib is able to gather all instances properly or not.
+func TestGetAllSubnetInstances(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+	sessions, err := BuildSessions(GetAllRegions())
+	if err != nil {
+		t.Errorf("Unable to get sessions : %v", err)
+	}
+	for r, sess := range sessions {
+		cdninstances, err := GetAllSubnetInstances(sess)
+		if err != nil {
+			t.Errorf("Failed to get Instances for region: %s because %v", r, err)
+		}
+		t.Logf("Found %d instances in %s", len(cdninstances), r)
+	}
+}
+
+// TestGetAllVPCInstances checks if the lib is able to gather all instances properly or not.
+func TestGetAllVPCInstances(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+	sessions, err := BuildSessions(GetAllRegions())
+	if err != nil {
+		t.Errorf("Unable to get sessions : %v", err)
+	}
+	for r, sess := range sessions {
+		cdninstances, err := GetAllVPCInstances(sess)
+		if err != nil {
+			t.Errorf("Failed to get Instances for region: %s because %v", r, err)
+		}
+		t.Logf("Found %d instances in %s", len(cdninstances), r)
+	}
+}
