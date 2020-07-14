@@ -53,43 +53,57 @@ func (col *AzureCollector) GetSubscription(ctx context.Context) error {
 }
 
 // CollectVMS gathers all the Virtual Machines for each subscriptionID in an account level
-func (col *AzureCollector) CollectVMS() (map[string][]*azurelib.VirtualMachineInfo, error) {
+func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib.VirtualMachineInfo, error) {
         subscriptionsMap := make(map[string][]*azurelib.VirtualMachineInfo)
         type subscriptionsVMS struct {
                 subscriptionName string
                 VMList           []*azurelib.VirtualMachineInfo
         }
+        var chanCapacity int
 
-        subscriptionsChan := make(chan subscriptionsVMS, len(col.SubscriptionMap))
-        errChan := make(chan error, len(col.SubscriptionMap))
+        if maxGoRoutines >= len(col.SubscriptionMap) {
+                chanCapacity = len(col.SubscriptionMap)
+        } else {
+                chanCapacity = maxGoRoutines
+        }
+        subscriptionCount := 0
+        subscriptionsChan := make(chan subscriptionsVMS, chanCapacity)
+        errChan := make(chan error, chanCapacity)
+
         var wg sync.WaitGroup
 
         for subscriptionName, subscriptionID := range col.SubscriptionMap {
-                wg.Add(1)
-                go func(subscriptionName string, subscriptionID string, subscriptionsChan chan subscriptionsVMS, errChan chan error) {
-                        defer wg.Done()
-
+                if subscriptionCount < chanCapacity {
+                        wg.Add(1)
+                        go func(subscriptionName string, subscriptionID string, subscriptionsChan chan subscriptionsVMS, errChan chan error) {
+                                defer wg.Done()
+                                VMList, err := CollectVMsPerSubscriptionID(subscriptionID)
+                                if err != nil {
+                                        errChan <- err
+                                        return
+                                }
+                                subscriptionsChan <- subscriptionsVMS{subscriptionName, VMList}
+                        }(subscriptionName, subscriptionID, subscriptionsChan, errChan)
+                        if subscriptionCount == chanCapacity-1 {
+                                wg.Wait()
+                                close(subscriptionsChan)
+                                close(errChan)
+                                if len(errChan) > 0 {
+                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VM Data: %v", <-errChan))
+                                }
+                                for subsVMS := range subscriptionsChan {
+                                        subscriptionsMap[subsVMS.subscriptionName] = subsVMS.VMList
+                                }
+                        }
+                } else {
                         VMList, err := CollectVMsPerSubscriptionID(subscriptionID)
                         if err != nil {
-                                errChan <- err
-                                return
+                                return subscriptionsMap, err
                         }
-                        subscriptionsChan <- subscriptionsVMS{subscriptionName, VMList}
-                }(subscriptionName, subscriptionID, subscriptionsChan, errChan)
+                        subscriptionsMap[subscriptionName] = VMList
+                }
+                subscriptionCount++
         }
-
-        wg.Wait()
-        close(subscriptionsChan)
-        close(errChan)
-
-        if len(errChan) > 0 {
-                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VM Data: %v", <-errChan))
-        }
-
-        for subsVMS := range subscriptionsChan {
-                subscriptionsMap[subsVMS.subscriptionName] = subsVMS.VMList
-        }
-
         return subscriptionsMap, nil
 }
 
