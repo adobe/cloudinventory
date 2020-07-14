@@ -9,6 +9,8 @@ import (
         "strings"
 )
 
+var maxGoRoutines int
+
 // azureCmd represents the azure command
 var azureCmd = &cobra.Command{
         Use:   "azure",
@@ -44,12 +46,16 @@ var azureCmd = &cobra.Command{
                                 return
                         }
                 }
+
+                if maxGoRoutines <= -1 {
+                        maxGoRoutines = len(col.SubscriptionMap)
+                }
                 // Create a map per service
                 result := make(map[string]interface{})
 
                 switch filter {
                 case "vm":
-                        err := collectVMS(col, result)
+                        err := collectVMS(col, maxGoRoutines, result)
                         if err != nil {
                                 return
                         }
@@ -64,7 +70,7 @@ var azureCmd = &cobra.Command{
                                 return
                         }
                 default:
-                        err := collectVMS(col, result)
+                        err := collectVMS(col, maxGoRoutines, result)
                         if err != nil {
                                 return
                         }
@@ -101,8 +107,8 @@ func validateAzureFilter(filter string) bool {
         return false
 }
 
-func collectVMS(col azurecollector.AzureCollector, result map[string]interface{}) error {
-        instances, err := col.CollectVMS()
+func collectVMS(col azurecollector.AzureCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectVMS(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather VM Data: %v\n", err)
                 return err
@@ -137,4 +143,5 @@ func collectLDB(col azurecollector.AzureCollector, result map[string]interface{}
 func init() {
         dumpCmd.AddCommand(azureCmd)
         azureCmd.PersistentFlags().StringP("inputPath", "i", "", "file path to take subscriptionIDs as input")
+        azureCmd.PersistentFlags().IntVarP(&maxGoRoutines, "maxGoRoutines","m", -1, "customize maximum no.of Goroutines ")
 }
