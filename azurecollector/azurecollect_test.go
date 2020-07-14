@@ -26,7 +26,8 @@ func TestCollectVMS(t *testing.T) {
         if err != nil {
                 t.Errorf("Failed to create collector: %v", err)
         }
-        _, err = col.CollectVMS()
+        maxGoRoutines := len(col.SubscriptionMap)
+        _, err = col.CollectVMS(maxGoRoutines)
         if err != nil {
                 t.Errorf("Failed to collect Virtual Machines: %v", err)
         }
