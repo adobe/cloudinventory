@@ -98,7 +98,7 @@ func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib
                 } else {
                         VMList, err := CollectVMsPerSubscriptionID(subscriptionID)
                         if err != nil {
-                                return subscriptionsMap, err
+                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VM Data: %v", err))
                         }
                         subscriptionsMap[subscriptionName] = VMList
                 }
@@ -108,42 +108,61 @@ func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib
 }
 
 // CollectSQLDBs gathers SQL databases for each subscriptionID in an account level
-func (col *AzureCollector) CollectSQLDBs() (map[string][]*azurelib.SQLDBInfo, error) {
+func (col *AzureCollector) CollectSQLDBs(maxGoRoutines int) (map[string][]*azurelib.SQLDBInfo, error) {
         DBs := make(map[string][]*azurelib.SQLDBInfo)
         type DBsPerSubscriptionID struct {
                 subscriptionName string
                 dbList           []*azurelib.SQLDBInfo
         }
-        dbsChan := make(chan DBsPerSubscriptionID, len(col.SubscriptionMap))
-        errChan := make(chan error, len(col.SubscriptionMap))
+        var chanCapacity int
+
+        if maxGoRoutines >= len(col.SubscriptionMap) {
+                chanCapacity = len(col.SubscriptionMap)
+        } else {
+                chanCapacity = maxGoRoutines
+        }
+        subscriptionCount := 0
+        dbsChan := make(chan DBsPerSubscriptionID, chanCapacity)
+        errChan := make(chan error, chanCapacity)
 
         var wg sync.WaitGroup
 
         for subscriptionName, subID := range col.SubscriptionMap {
-                wg.Add(1)
-                go func(subID string, subscriptionName string, dbsChan chan DBsPerSubscriptionID, errChan chan error) {
-                        defer wg.Done()
+                if subscriptionCount < chanCapacity {
+                        wg.Add(1)
+                        go func(subID string, subscriptionName string, dbsChan chan DBsPerSubscriptionID, errChan chan error) {
+                                defer wg.Done()
+                                dbs, err := CollectSQLDBsPerSubscriptionID(subID)
+                                if err != nil {
+                                        errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
+                                        return
+                                }
+                                if dbs == nil {
+                                        return
+                                }
+                                dbsChan <- DBsPerSubscriptionID{subscriptionName, dbs}
+                        }(subID, subscriptionName, dbsChan, errChan)
+                        if subscriptionCount == chanCapacity-1 {
+                                wg.Wait()
+                                close(dbsChan)
+                                close(errChan)
+
+                                if len(errChan) > 0 {
+                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQL databases Data: %v", <-errChan))
+                                }
+
+                                for subscriptionDbs := range dbsChan {
+                                        DBs[subscriptionDbs.subscriptionName] = subscriptionDbs.dbList
+                                }
+                        }
+                } else {
                         dbs, err := CollectSQLDBsPerSubscriptionID(subID)
                         if err != nil {
-                                errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
-                                return
+                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQL databases Data: %v", err))
                         }
-                        if dbs == nil {
-                                return
-                        }
-                        dbsChan <- DBsPerSubscriptionID{subscriptionName, dbs}
-                }(subID, subscriptionName, dbsChan, errChan)
-        }
-        wg.Wait()
-        close(dbsChan)
-        close(errChan)
-
-        if len(errChan) > 0 {
-                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQL databases Data: %v", <-errChan))
-        }
-
-        for subscriptionDbs := range dbsChan {
-                DBs[subscriptionDbs.subscriptionName] = subscriptionDbs.dbList
+                        DBs[subscriptionName] = dbs
+                }
+                subscriptionCount++
         }
 
         return DBs, nil
@@ -151,42 +170,62 @@ func (col *AzureCollector) CollectSQLDBs() (map[string][]*azurelib.SQLDBInfo, er
 }
 
 // CollectLoadBalancers gathers Load Balancers for each subscriptionID in an account level
-func (col *AzureCollector) CollectLoadBalancers() (map[string][]*network.LoadBalancer, error) {
-	LDBs := make(map[string][]*network.LoadBalancer)
-	type LoadBalancersPerSubscriptionID struct {
-			SubscriptionName string
-			LdbList           []*network.LoadBalancer
-	}
-	ldbsChan := make(chan LoadBalancersPerSubscriptionID, len(col.SubscriptionMap))
-	errChan := make(chan error, len(col.SubscriptionMap))
-	var wg sync.WaitGroup
-	for subscriptionName, subID := range col.SubscriptionMap {
-			wg.Add(1)
-			go func(subID string, subscriptionName string, ldbsChan chan LoadBalancersPerSubscriptionID, errChan chan error) {
-					defer wg.Done()
-					ldbs, err := CollectLoadBalancersPerSubscriptionID(subID)
-					if err != nil {
-							errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
-							return
-					}
-					if ldbs == nil {
-							return
-					}
-					ldbsChan <- LoadBalancersPerSubscriptionID{subscriptionName, ldbs}
-			}(subID, subscriptionName, ldbsChan, errChan)
-	}
-	wg.Wait()
-	close(ldbsChan)
-	close(errChan)
-	if len(errChan) > 0 {
-			return nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", <-errChan))
-	}
-	for subscriptionLDBs := range ldbsChan {
-			LDBs[subscriptionLDBs.SubscriptionName] = subscriptionLDBs.LdbList
-	}
-	return LDBs, nil
-}
+func (col *AzureCollector) CollectLoadBalancers(maxGoRoutines int) (map[string][]*network.LoadBalancer, error) {
+        LDBs := make(map[string][]*network.LoadBalancer)
+        type LoadBalancersPerSubscriptionID struct {
+                SubscriptionName string
+                LdbList          []*network.LoadBalancer
+        }
+        var chanCapacity int
 
+        if maxGoRoutines >= len(col.SubscriptionMap) {
+                chanCapacity = len(col.SubscriptionMap)
+        } else {
+                chanCapacity = maxGoRoutines
+        }
+        subscriptionCount := 0
+        ldbsChan := make(chan LoadBalancersPerSubscriptionID, chanCapacity)
+        errChan := make(chan error, chanCapacity)
+
+        var wg sync.WaitGroup
+
+        for subscriptionName, subID := range col.SubscriptionMap {
+                if subscriptionCount < chanCapacity {
+                        wg.Add(1)
+                        go func(subID string, subscriptionName string, ldbsChan chan LoadBalancersPerSubscriptionID, errChan chan error) {
+                                defer wg.Done()
+                                ldbs, err := CollectLoadBalancersPerSubscriptionID(subID)
+                                if err != nil {
+                                        errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
+                                        return
+                                }
+                                if ldbs == nil {
+                                        return
+                                }
+                                ldbsChan <- LoadBalancersPerSubscriptionID{subscriptionName, ldbs}
+                        }(subID, subscriptionName, ldbsChan, errChan)
+                        if subscriptionCount == chanCapacity-1 {
+                                wg.Wait()
+                                close(ldbsChan)
+                                close(errChan)
+                                if len(errChan) > 0 {
+                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", <-errChan))
+                                }
+                                for subscriptionLDBs := range ldbsChan {
+                                        LDBs[subscriptionLDBs.SubscriptionName] = subscriptionLDBs.LdbList
+                                }
+                        }
+                } else {
+                        ldbs, err := CollectLoadBalancersPerSubscriptionID(subID)
+                        if err != nil {
+                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", err))
+                        }
+                        LDBs[subscriptionName] = ldbs
+                }
+                subscriptionCount++
+        }
+        return LDBs, nil
+}
 // CollectLoadBalancersPerSubscriptionID returns a slice of Load Balancers for a given subscriptionID
 func CollectLoadBalancersPerSubscriptionID(subscriptionID string) ([]*network.LoadBalancer, error) {
 	ldblist, err := azurelib.GetAllLdb(subscriptionID)
