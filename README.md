@@ -49,7 +49,7 @@ Flags:
       --ansible_inv string   File to create the EC2 ansible inventory in (default "ansible.inv")
       --ansible_private      Create Ansible Inventory with private DNS instead of public
   -h, --help                 help for aws
-  -i, --inputPath string     file path to dump the inventory in
+  -i, --inputPath string     file path to take user input
       --partition string     Which partition of AWS to run for default/china (default "default")
 Global Flags:
   -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds
