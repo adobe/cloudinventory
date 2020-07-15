@@ -11,7 +11,8 @@ func TestCollectSQLDBs(t *testing.T) {
         if err != nil {
                 t.Errorf("Failed to create collector: %v", err)
         }
-        _, err = col.CollectSQLDBs()
+         maxGoRoutines := len(col.SubscriptionMap)
+        _, err = col.CollectSQLDBs(maxGoRoutines)
         if err != nil {
                 t.Errorf("Failed to collect SQL Databases: %v", err)
         }
@@ -42,7 +43,8 @@ func TestCollectLoadBalancers(t *testing.T) {
         if err != nil {
                 t.Errorf("Failed to create collector: %v", err)
         }
-        _, err = col.CollectLoadBalancers()
+        maxGoRoutines := len(col.SubscriptionMap)
+        _, err = col.CollectLoadBalancers(maxGoRoutines)
         if err != nil {
                 t.Errorf("Failed to collect Load Balancers: %v", err)
         }
