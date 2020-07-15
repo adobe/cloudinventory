@@ -60,12 +60,12 @@ var azureCmd = &cobra.Command{
                                 return
                         }
                 case "sqldb":
-                        err := collectSQLDB(col, result)
+                        err := collectSQLDB(col, maxGoRoutines, result)
                         if err != nil {
                                 return
                         }
                 case "loadbalancer":
-                        err := collectLDB(col, result)
+                        err := collectLDB(col, maxGoRoutines, result)
                         if err != nil {
                                 return
                         }
@@ -74,7 +74,7 @@ var azureCmd = &cobra.Command{
                         if err != nil {
                                 return
                         }
-                        err = collectSQLDB(col, result)
+                        err = collectSQLDB(col, maxGoRoutines, result)
                         if err != nil {
                                 return
                         }
@@ -118,8 +118,8 @@ func collectVMS(col azurecollector.AzureCollector, maxGoRoutines int, result map
         return nil
 }
 
-func collectSQLDB(col azurecollector.AzureCollector, result map[string]interface{}) error {
-        instances, err := col.CollectSQLDBs()
+func collectSQLDB(col azurecollector.AzureCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectSQLDBs(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather SQL database Data: %v\n", err)
                 return err
@@ -129,8 +129,8 @@ func collectSQLDB(col azurecollector.AzureCollector, result map[string]interface
         return nil
 }
 
-func collectLDB(col azurecollector.AzureCollector, result map[string]interface{}) error {
-        instances, err := col.CollectLoadBalancers()
+func collectLDB(col azurecollector.AzureCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectLoadBalancers(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather load balancers Data: %v\n", err)
                 return err
