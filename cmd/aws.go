@@ -28,6 +28,7 @@ var partition string
 var ansibleinv string
 var ansibleEnable bool
 var ansiblePriv bool
+var maximumGoRoutines int
 
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
@@ -70,12 +71,12 @@ var awsCmd = &cobra.Command{
 
                 switch filter {
                 case "ec2":
-                        err := collectEC2(col, result)
+                        err := collectEC2(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }
                 case "rds":
-                        err := collectRDS(col, result)
+                        err := collectRDS(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }
@@ -85,31 +86,31 @@ var awsCmd = &cobra.Command{
                                 return
                         }
                 case "loadbalancer":
-                        err := collectLoadBalancers(col, result)
+                        err := collectLoadBalancers(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }
                 case "cloudfront":
-                        err := collectCloudFront(col, result)
+                        err := collectCloudFront(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }
                 case "vpc":
-                        err := collectVpc(col, result)
+                        err := collectVpc(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }
                 case "subnet":
-                        err := collectSubnets(col, result)
+                        err := collectSubnets(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }                
                 default:
-                        err := collectEC2(col, result)
+                        err := collectEC2(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }
-                        err = collectRDS(col, result)
+                        err = collectRDS(col, maximumGoRoutines, result)
                         if err != nil {
                                 return
                         }
@@ -157,8 +158,8 @@ func validateAWSFilter(filter string) bool {
         return false
 }
 
-func collectEC2(col collector.AWSCollector, result map[string]interface{}) error {
-        instances, err := col.CollectEC2()
+func collectEC2(col collector.AWSCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectEC2(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather EC2 Data: %v\n", err)
                 return err
@@ -179,8 +180,8 @@ func collectHostedZone(col collector.AWSCollector, result map[string]interface{}
         return nil
 }
 
-func collectVpc(col collector.AWSCollector, result map[string]interface{}) error {
-        instances, err := col.CollectVPC()
+func collectVpc(col collector.AWSCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectVPC(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather Vpc Data: %v\n", err)
                 return err
@@ -190,8 +191,8 @@ func collectVpc(col collector.AWSCollector, result map[string]interface{}) error
         return nil
 }
 
-func collectSubnets(col collector.AWSCollector, result map[string]interface{}) error {
-        instances, err := col.CollectSubnets()
+func collectSubnets(col collector.AWSCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectSubnets(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather subnets Data: %v\n", err)
                 return err
@@ -201,8 +202,8 @@ func collectSubnets(col collector.AWSCollector, result map[string]interface{}) e
         return nil
 }
 
-func collectCloudFront(col collector.AWSCollector, result map[string]interface{}) error {
-        instances, err := col.CollectCloudFront()
+func collectCloudFront(col collector.AWSCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectCloudFront(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather RDS Data: %v\n", err)
                 return err
@@ -212,8 +213,8 @@ func collectCloudFront(col collector.AWSCollector, result map[string]interface{}
         return nil
 }
 
-func collectRDS(col collector.AWSCollector, result map[string]interface{}) error {
-        instances, err := col.CollectRDS()
+func collectRDS(col collector.AWSCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, err := col.CollectRDS(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather RDS Data: %v\n", err)
                 return err
@@ -223,10 +224,10 @@ func collectRDS(col collector.AWSCollector, result map[string]interface{}) error
         return nil
 }
 
-func collectLoadBalancers(col collector.AWSCollector, result map[string]interface{}) error {
+func collectLoadBalancers(col collector.AWSCollector, maxGoRoutines int, result map[string]interface{}) error {
 
         var allLbs []interface{}
-        clbs, err := col.CollectClassicLoadBalancers()
+        clbs, err := col.CollectClassicLoadBalancers(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather classic load balancers: %v\n", err)
                 return err
@@ -234,7 +235,7 @@ func collectLoadBalancers(col collector.AWSCollector, result map[string]interfac
         allLbs = append(allLbs, clbs)
         fmt.Printf("Gathered Classic Load Balancers across %d regions\n", len(clbs))
 
-        anlbs, err := col.CollectApplicationAndNetworkLoadBalancers()
+        anlbs, err := col.CollectApplicationAndNetworkLoadBalancers(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather application and network load balancers: %v\n", err)
                 return err
@@ -251,6 +252,7 @@ func init() {
         awsCmd.PersistentFlags().BoolVarP(&ansibleEnable, "ansible", "a", false, "Create a an ansible inventory as well (only for EC2)")
         awsCmd.PersistentFlags().StringVarP(&ansibleinv, "ansible_inv", "", "ansible.inv", "File to create the EC2 ansible inventory in")
         awsCmd.PersistentFlags().BoolVarP(&ansiblePriv, "ansible_private", "", false, "Create Ansible Inventory with private DNS instead of public")
+        awsCmd.PersistentFlags().IntVarP(&maximumGoRoutines, "maxGoRoutines","m", -1, "customize maximum no.of Goroutines ")
         awsCmd.PersistentFlags().StringP("inputPath", "i", "", "file path to take user input")
         dumpCmd.AddCommand(awsCmd)
 }
