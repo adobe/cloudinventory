@@ -48,10 +48,61 @@ func TestCollectEC2(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
-	ii, err := col.CollectEC2()
+	maxGoroutines := len(col.sessions)
+	ii, err := col.CollectEC2(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect EC2 instances: %v", err)
+	}
+	// Depending on the Account, the map should contain one of the following regions
+	if len(ii) != 0 {
+		for r := range ii {
+			if !stringInSlice(r, awslib.GetAllRegions()) {
+				t.Errorf("Found rougue region in instances")
+			}
+		}
+	}
+}
+
+// TestCollectVPC tries to gather VPC data across all regions
+func TestCollectVPC(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+	col, err := NewAWSCollector("default", nil)
+	if err != nil {
+		t.Errorf("Failed to create default collector: %v", err)
+	}
+	maxGoroutines := len(col.sessions)
+	ii, err := col.CollectVPC(maxGoroutines)
+	if err != nil {
+		// Improve this test, right now, does not test anything of note
+		t.Errorf("Failed to collect VPC data: %v", err)
+	}
+	// Depending on the Account, the map should contain one of the following regions
+	if len(ii) != 0 {
+		for r := range ii {
+			if !stringInSlice(r, awslib.GetAllRegions()) {
+				t.Errorf("Found rougue region in instances")
+			}
+		}
+	}
+}
+
+// TestCollectSubnet tries to gather Subnets data across all regions
+func TestCollectSubnet(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode")
+	}
+	col, err := NewAWSCollector("default", nil)
+	if err != nil {
+		t.Errorf("Failed to create default collector: %v", err)
+	}
+	maxGoroutines := len(col.sessions)
+	ii, err := col.CollectSubnets(maxGoroutines)
+	if err != nil {
+		// Improve this test, right now, does not test anything of note
+		t.Errorf("Failed to collect Subnets data: %v", err)
 	}
 	// Depending on the Account, the map should contain one of the following regions
 	if len(ii) != 0 {
@@ -72,7 +123,8 @@ func TestCollectRDS(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
-	ii, err := col.CollectRDS()
+	maxGoroutines := len(col.sessions)
+	ii, err := col.CollectRDS(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect RDS instances: %v", err)
@@ -87,7 +139,7 @@ func TestCollectRDS(t *testing.T) {
 	}
 }
 
-// TestCollectCloudFront tries to gather cloud front instances across all regions
+// TestCollectCloudFront tries to gather cloud front data across all regions
 func TestCollectCloudFront(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
@@ -96,7 +148,8 @@ func TestCollectCloudFront(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
-	ii, err := col.CollectCloudFront()
+	maxGoroutines := len(col.sessions)
+	ii, err := col.CollectCloudFront(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect cloud front instances: %v", err)
