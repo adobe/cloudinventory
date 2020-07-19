@@ -49,7 +49,7 @@ func TestCollectEC2(t *testing.T) {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
 	maxGoroutines := len(col.sessions)
-	ii, err := col.CollectEC2(maxGoroutines)
+	ii, _, err := col.CollectEC2(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect EC2 instances: %v", err)
@@ -74,7 +74,7 @@ func TestCollectVPC(t *testing.T) {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
 	maxGoroutines := len(col.sessions)
-	ii, err := col.CollectVPC(maxGoroutines)
+	ii, _, err := col.CollectVPC(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect VPC data: %v", err)
@@ -99,7 +99,7 @@ func TestCollectSubnet(t *testing.T) {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
 	maxGoroutines := len(col.sessions)
-	ii, err := col.CollectSubnets(maxGoroutines)
+	ii, _, err := col.CollectSubnets(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect Subnets data: %v", err)
@@ -124,7 +124,7 @@ func TestCollectRDS(t *testing.T) {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
 	maxGoroutines := len(col.sessions)
-	ii, err := col.CollectRDS(maxGoroutines)
+	ii, _, err := col.CollectRDS(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect RDS instances: %v", err)
@@ -149,7 +149,7 @@ func TestCollectCloudFront(t *testing.T) {
 		t.Errorf("Failed to create default collector: %v", err)
 	}
 	maxGoroutines := len(col.sessions)
-	ii, err := col.CollectCloudFront(maxGoroutines)
+	ii, _, err := col.CollectCloudFront(maxGoroutines)
 	if err != nil {
 		// Improve this test, right now, does not test anything of note
 		t.Errorf("Failed to collect cloud front instances: %v", err)
