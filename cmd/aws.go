@@ -28,7 +28,6 @@ var partition string
 var ansibleinv string
 var ansibleEnable bool
 var ansiblePriv bool
-var maximumGoRoutines int
 
 // awsCmd represents the aws command
 var awsCmd = &cobra.Command{
