@@ -110,9 +110,11 @@ func (col AWSCollector) CheckCredentials() bool {
 	return true
 }
 
-// CollectEC2 returns a concurrently collected EC2 inventory for all the regions
-func (col AWSCollector) CollectEC2(maxGoRoutines int) (map[string][]*ec2.Instance, error) {
+// CollectEC2 returns a concurrently collected EC2 inventory and stats for all the regions
+// Function takes no.of goroutines to be created from user as input
+func (col AWSCollector) CollectEC2(maxGoRoutines int) (map[string][]*ec2.Instance, map[string]int, error) {
         instances := make(map[string][]*ec2.Instance)
+        instancesCount := make(map[string]int)
 
         // instanceRegion is a struct that holds all EC2 instances in a given region
         type instanceRegion struct {
@@ -120,6 +122,7 @@ func (col AWSCollector) CollectEC2(maxGoRoutines int) (map[string][]*ec2.Instanc
                 instances []*ec2.Instance
         }
 
+        // chanCapacity used to specify buffer channel capacity
         var chanCapacity int
 
         if maxGoRoutines >= len(col.sessions) || maxGoRoutines < 0 {
@@ -139,6 +142,7 @@ func (col AWSCollector) CollectEC2(maxGoRoutines int) (map[string][]*ec2.Instanc
                         go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
                                 defer wg.Done()
                                 chunk, err := CollectEC2PerSession(sess)
+
                                 if err != nil {
                                         errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
                                         return
@@ -157,33 +161,35 @@ func (col AWSCollector) CollectEC2(maxGoRoutines int) (map[string][]*ec2.Instanc
                                 close(errChan)
 
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather EC2 Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather EC2 Data: %v", <-errChan))
                                 }
 
                                 for regionChunk := range instancesChan {
                                         instances[regionChunk.region] = regionChunk.instances
+                                        instancesCount[regionChunk.region] = len(regionChunk.instances)
                                 }
                         }
                 } else {
                         chunk, err := CollectEC2PerSession(sess)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather EC2 Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather EC2 Data: %v", err))
                         }
                         if chunk == nil {
                                 sessionCount++
                                 continue
                         }
                         instances[region] = chunk
+                        instancesCount[region] = len(chunk)
 
                 }
                 sessionCount++
         }
 
-        return instances, nil
+        return instances, instancesCount, nil
 }
 
-// CollectZones returns a hostedZones
-func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
+// CollectZones returns a hostedZones and its stats
+func (col AWSCollector) CollectZones() ([]*route53.HostedZone, int, error) {
 
         b := &backoff.Backoff{
                 //These are the defaults
@@ -194,6 +200,7 @@ func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
         }
 
         zones := make([]*route53.HostedZone, 0)
+        count := 0
         var nextPageExists = true
         request := &route53.ListHostedZonesInput{}
 
@@ -220,12 +227,14 @@ func (col AWSCollector) CollectZones() ([]*route53.HostedZone, error) {
                         request.Marker = response.NextMarker
                 }
         }
-        return zones, nil
+        count = len(zones)
+        return zones, count, nil
 }
 
-// GetHostedZoneRecords returns the hostedzonesRecords for a particular hostedZoneId
-func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.ResourceRecordSet, error) {
+// GetHostedZoneRecords returns the hostedzonesRecords and its stats for a particular hostedZoneId
+func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.ResourceRecordSet, int, error) {
         var nextPageExists = true
+        count := 0
 
         b := &backoff.Backoff{
                 //These are the defaults
@@ -264,12 +273,15 @@ func (col AWSCollector) GetHostedZoneRecords(hostedZoneId string) ([]*route53.Re
                         request.StartRecordType = response.NextRecordType
                 }
         }
-        return records, nil
+        count = len(records)
+        return records, count, nil
 }
 
-// CollectClassicLoadBalancers returns a concurrently collected LoadBalancers inventory for all the regions
-func (col AWSCollector) CollectClassicLoadBalancers(maxGoRoutines int) (map[string][]*elb.LoadBalancerDescription, error) {
+// CollectClassicLoadBalancers returns a concurrently collected LoadBalancers inventory and stats for all the
+// Function takes no.of goroutines to be created from user as input
+func (col AWSCollector) CollectClassicLoadBalancers(maxGoRoutines int) (map[string][]*elb.LoadBalancerDescription, map[string]int, error) {
         instances := make(map[string][]*elb.LoadBalancerDescription)
+        instancesCount := make(map[string]int)
 
         // instanceRegion is a struct that holds all load balancers instances in a given region
         type instanceRegion struct {
@@ -277,6 +289,7 @@ func (col AWSCollector) CollectClassicLoadBalancers(maxGoRoutines int) (map[stri
                 instances []*elb.LoadBalancerDescription
         }
 
+        // chanCapacity used to specify buffer channel capacity
         var chanCapacity int
 
         if maxGoRoutines >= len(col.sessions) || maxGoRoutines < 0 {
@@ -315,33 +328,37 @@ func (col AWSCollector) CollectClassicLoadBalancers(maxGoRoutines int) (map[stri
                                 close(errChan)
 
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", <-errChan))
                                 }
 
                                 for regionChunk := range instancesChan {
                                         instances[regionChunk.region] = regionChunk.instances
+                                        instancesCount[regionChunk.region] = len(regionChunk.instances)
                                 }
                         }
                 } else {
                         chunk, err := CollectClassicLoadBalancerPerSession(sess)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", err))
                         }
                         if chunk == nil {
                                 sessionCount++
                                 continue
                         }
                         instances[region] = chunk
+                        instancesCount[region] = len(chunk)
 
                 }
                 sessionCount++
         }
-        return instances, nil
+        return instances, instancesCount, nil
 }
 
-// CollectApplicationAndNetworkLoadBalancers returns a concurrently collected LoadBalancers inventory for all the regions
-func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers(maxGoRoutines int) (map[string][]*elbv2.LoadBalancer, error) {
+// CollectApplicationAndNetworkLoadBalancers returns a concurrently collected LoadBalancers inventory and stats for all the regions
+// Function takes no.of goroutines to be created from user as input
+func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers(maxGoRoutines int) (map[string][]*elbv2.LoadBalancer, map[string]int, error) {
         instances := make(map[string][]*elbv2.LoadBalancer)
+        instancesCount := make(map[string]int)
 
         // instanceRegion is a struct that holds all load balancers instances in a given region
         type instanceRegion struct {
@@ -349,6 +366,7 @@ func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers(maxGoRoutines 
                 instances []*elbv2.LoadBalancer
         }
 
+        // chanCapacity used to specify buffer channel capacity
         var chanCapacity int
 
         if maxGoRoutines >= len(col.sessions) || maxGoRoutines < 0 {
@@ -387,33 +405,37 @@ func (col AWSCollector) CollectApplicationAndNetworkLoadBalancers(maxGoRoutines 
                                 close(errChan)
 
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", <-errChan))
                                 }
 
                                 for regionChunk := range instancesChan {
                                         instances[regionChunk.region] = regionChunk.instances
+                                        instancesCount[regionChunk.region] = len(regionChunk.instances)
                                 }
                         }
                 } else {
                         chunk, err := CollectApplicationNetworkLoadBalancerPerSession(sess)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather LoadBalancers Data: %v", err))
                         }
                         if chunk == nil {
                                 sessionCount++
                                 continue
                         }
                         instances[region] = chunk
+                        instancesCount[region] = len(chunk)
 
                 }
                 sessionCount++
         }
-        return instances, nil
+        return instances, instancesCount, nil
 }
 
-// CollectVPC returns a concurrently collected Vpc inventory for all the regions
-func (col AWSCollector) CollectVPC(maxGoRoutines int) (map[string][]*ec2.Vpc, error) {
+// CollectVPC returns a concurrently collected Vpc inventory  and stats for all the regions
+// Function takes no.of goroutines to be created from user as input
+func (col AWSCollector) CollectVPC(maxGoRoutines int) (map[string][]*ec2.Vpc, map[string]int, error) {
         instances := make(map[string][]*ec2.Vpc)
+        instancesCount := make(map[string]int)
 
         // instanceRegion is a struct that holds all Vpc instances in a given region
         type instanceRegion struct {
@@ -421,6 +443,7 @@ func (col AWSCollector) CollectVPC(maxGoRoutines int) (map[string][]*ec2.Vpc, er
                 instances []*ec2.Vpc
         }
 
+        // chanCapacity used to specify buffer channel capacity
         var chanCapacity int
 
         if maxGoRoutines >= len(col.sessions) || maxGoRoutines < 0 {
@@ -446,7 +469,7 @@ func (col AWSCollector) CollectVPC(maxGoRoutines int) (map[string][]*ec2.Vpc, er
                                         return
                                 }
 
-                                // Ignore regions with no load balancer instances
+                                // Ignore regions with no vpc instances
                                 if chunk == nil {
                                         return
                                 }
@@ -459,33 +482,37 @@ func (col AWSCollector) CollectVPC(maxGoRoutines int) (map[string][]*ec2.Vpc, er
                                 close(errChan)
 
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VPC Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather VPC Data: %v", <-errChan))
                                 }
 
                                 for regionChunk := range instancesChan {
                                         instances[regionChunk.region] = regionChunk.instances
+                                        instancesCount[regionChunk.region] = len(regionChunk.instances)
                                 }
                         }
                 } else {
                         chunk, err := CollectVPCPerSession(sess)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VPC Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather VPC Data: %v", err))
                         }
                         if chunk == nil {
                                 sessionCount++
                                 continue
                         }
                         instances[region] = chunk
+                        instancesCount[region] = len(chunk)
 
                 }
                 sessionCount++
         }
-        return instances, nil
+        return instances, instancesCount, nil
 }
 
-// CollectSubnets returns a concurrently collected Subnets inventory for all the regions
-func (col AWSCollector) CollectSubnets(maxGoRoutines int) (map[string][]*ec2.Subnet, error) {
+// CollectSubnets returns a concurrently collected Subnets inventory and stats for all the regions
+// Function takes no.of goroutines to be created from user as input
+func (col AWSCollector) CollectSubnets(maxGoRoutines int) (map[string][]*ec2.Subnet, map[string]int, error) {
         instances := make(map[string][]*ec2.Subnet)
+        instancesCount := make(map[string]int)
 
         // instanceRegion is a struct that holds all subnet instances in a given region
         type instanceRegion struct {
@@ -493,6 +520,7 @@ func (col AWSCollector) CollectSubnets(maxGoRoutines int) (map[string][]*ec2.Sub
                 instances []*ec2.Subnet
         }
 
+        // chanCapacity used to specify buffer channel capacity
         var chanCapacity int
 
         if maxGoRoutines >= len(col.sessions) || maxGoRoutines < 0 {
@@ -518,7 +546,7 @@ func (col AWSCollector) CollectSubnets(maxGoRoutines int) (map[string][]*ec2.Sub
                                         return
                                 }
 
-                                // Ignore regions with no load balancer instances
+                                // Ignore regions with no subnet instances
                                 if chunk == nil {
                                         return
                                 }
@@ -531,39 +559,43 @@ func (col AWSCollector) CollectSubnets(maxGoRoutines int) (map[string][]*ec2.Sub
                                 close(errChan)
 
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather Subnets Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather Subnets Data: %v", <-errChan))
                                 }
 
                                 for regionChunk := range instancesChan {
                                         instances[regionChunk.region] = regionChunk.instances
+                                        instancesCount[regionChunk.region] = len(regionChunk.instances)
                                 }
                         }
                 } else {
                         chunk, err := CollectSubnetPerSession(sess)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather Subnets Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather Subnets Data: %v", err))
                         }
                         if chunk == nil {
                                 sessionCount++
                                 continue
                         }
                         instances[region] = chunk
+                        instancesCount[region] = len(chunk)
                 }
                 sessionCount++
         }
-        return instances, nil
+        return instances, instancesCount, nil
 }
 
-// CollectCloudFront returns a concurrently collected cloud front inventory for all the regions
-func (col AWSCollector) CollectCloudFront(maxGoRoutines int) (map[string][]*cloudfront.DistributionSummary, error) {
+// CollectCloudFront returns a concurrently collected cloud front inventory and stats for all the regions
+// Function takes no.of goroutines to be created from user as input
+func (col AWSCollector) CollectCloudFront(maxGoRoutines int) (map[string][]*cloudfront.DistributionSummary, map[string]int, error) {
         instances := make(map[string][]*cloudfront.DistributionSummary)
-
+        instancesCount := make(map[string]int)
         // instanceRegion is a struct that holds all CloudFront instances in a given region
         type instanceRegion struct {
                 region    string
                 instances []*cloudfront.DistributionSummary
         }
 
+        // chanCapacity used to specify buffer channel capacity
         var chanCapacity int
 
         if maxGoRoutines >= len(col.sessions) || maxGoRoutines < 0 {
@@ -589,7 +621,7 @@ func (col AWSCollector) CollectCloudFront(maxGoRoutines int) (map[string][]*clou
                                         return
                                 }
 
-                                // Ignore regions with no load balancer instances
+                                // Ignore regions with no cloud fronts
                                 if chunk == nil {
                                         return
                                 }
@@ -602,41 +634,45 @@ func (col AWSCollector) CollectCloudFront(maxGoRoutines int) (map[string][]*clou
                                 close(errChan)
 
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather CloudFront Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather CloudFront Data: %v", <-errChan))
                                 }
 
                                 for regionChunk := range instancesChan {
                                         instances[regionChunk.region] = regionChunk.instances
+                                        instancesCount[regionChunk.region] = len(regionChunk.instances)
                                 }
                         }
                 } else {
                         chunk, err := CollectCloudFrontPerSession(sess)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather CloudFront Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather CloudFront Data: %v", err))
                         }
                         if chunk == nil {
                                 sessionCount++
                                 continue
                         }
                         instances[region] = chunk
+                        instancesCount[region] = len(chunk)
 
                 }
                 sessionCount++
         }
-        return instances, nil
+        return instances, instancesCount, nil
 
 }
 
-// CollectRDS returns a concurrently collected RDS inventory for all the regions
-func (col AWSCollector) CollectRDS(maxGoRoutines int) (map[string][]*rds.DBInstance, error) {
+// CollectRDS returns a concurrently collected RDS inventory and stats for all the regions
+// Function takes no.of goroutines to be created from user as input
+func (col AWSCollector) CollectRDS(maxGoRoutines int) (map[string][]*rds.DBInstance, map[string]int, error) {
         instances := make(map[string][]*rds.DBInstance)
-
+        instancesCount := make(map[string]int)
         // instanceRegion is a struct that holds all RDS instances in a given region
         type instanceRegion struct {
                 region    string
                 instances []*rds.DBInstance
         }
 
+        // chanCapacity used to specify buffer channel capacity
         var chanCapacity int
 
         if maxGoRoutines >= len(col.sessions) || maxGoRoutines < 0 {
@@ -656,12 +692,13 @@ func (col AWSCollector) CollectRDS(maxGoRoutines int) (map[string][]*rds.DBInsta
                         go func(sess *session.Session, region string, instancesChan chan instanceRegion, errChan chan error) {
                                 defer wg.Done()
                                 chunk, err := CollectRDSPerSession(sess)
+
                                 if err != nil {
                                         errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", region, err))
                                         return
                                 }
 
-                                // Ignore regions with no load balancer instances
+                                // Ignore regions with no rds instances
                                 if chunk == nil {
                                         return
                                 }
@@ -674,28 +711,30 @@ func (col AWSCollector) CollectRDS(maxGoRoutines int) (map[string][]*rds.DBInsta
                                 close(errChan)
 
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather RDS Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather RDS Data: %v", <-errChan))
                                 }
 
                                 for regionChunk := range instancesChan {
                                         instances[regionChunk.region] = regionChunk.instances
+                                        instancesCount[regionChunk.region] = len(regionChunk.instances)
                                 }
                         }
                 } else {
                         chunk, err := CollectRDSPerSession(sess)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather RDS Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather RDS Data: %v", err))
                         }
                         if chunk == nil {
                                 sessionCount++
                                 continue
                         }
                         instances[region] = chunk
+                        instancesCount[region] = len(chunk)
 
                 }
                 sessionCount++
         }
-        return instances, nil
+        return instances, instancesCount, nil
 
 }
 
