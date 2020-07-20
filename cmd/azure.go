@@ -9,8 +9,6 @@ import (
         "strings"
 )
 
-var maxGoRoutines int
-
 // azureCmd represents the azure command
 var azureCmd = &cobra.Command{
         Use:   "azure",
@@ -19,6 +17,8 @@ var azureCmd = &cobra.Command{
                 path := cmd.Flag("path").Value.String()
                 filter := cmd.Flag("filter").Value.String()
                 inputPath := cmd.Flag("inputPath").Value.String()
+                statistics, _ := cmd.Flags().GetBool("stats")
+                maxGoRoutines, _ := cmd.Flags().GetInt("maxGoRoutines")
                 if !validateAzureFilter(filter) {
                         fmt.Printf("Invalid filter selected, please select a supported Azure service")
                         return
@@ -47,48 +47,85 @@ var azureCmd = &cobra.Command{
                         }
                 }
 
-                if maxGoRoutines <= -1 {
-                        maxGoRoutines = len(col.SubscriptionMap)
-                }
                 // Create a map per service
                 result := make(map[string]interface{})
+                
+                if statistics {
+                        switch filter {
+                        case "vm":
+                                err := collectVMSStats(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        case "sqldb":
+                                err := collectSQLDBStats(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        case "loadbalancer":
+                                err := collectLDBStats(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        default:
+                                err := collectVMSStats(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                                err = collectSQLDBStats(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        }
 
-                switch filter {
-                case "vm":
-                        err := collectVMS(col, maxGoRoutines, result)
+                        fmt.Printf("Dumping stats to %s\n", path)
+                        jsonBytes, err := json.MarshalIndent(result, "", "    ")
                         if err != nil {
-                                return
+                                fmt.Printf("Error Marshalling JSON: %v\n", err)
                         }
-                case "sqldb":
-                        err := collectSQLDB(col, maxGoRoutines, result)
+                        err = ioutil.WriteFile(path, jsonBytes, 0644)
                         if err != nil {
-                                return
-                        }
-                case "loadbalancer":
-                        err := collectLDB(col, maxGoRoutines, result)
-                        if err != nil {
-                                return
-                        }
-                default:
-                        err := collectVMS(col, maxGoRoutines, result)
-                        if err != nil {
-                                return
-                        }
-                        err = collectSQLDB(col, maxGoRoutines, result)
-                        if err != nil {
-                                return
-                        }
-                }
-                fmt.Printf("Dumping to %s\n", path)
-                jsonBytes, err := json.MarshalIndent(result, "", "    ")
-                if err != nil {
-                        fmt.Printf("Error Marshalling JSON: %v\n", err)
-                }
-                err = ioutil.WriteFile(path, jsonBytes, 0644)
-                if err != nil {
-                        fmt.Printf("Error writing file: %v\n", err)
-                }
+                                fmt.Printf("Error writing file: %v\n", err)
+                        }        
 
+                } else {
+                        switch filter {
+                        case "vm":
+                                err := collectVMS(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        case "sqldb":
+                                err := collectSQLDB(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        case "loadbalancer":
+                                err := collectLDB(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        default:
+                                err := collectVMS(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                                err = collectSQLDB(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
+                        }
+                        fmt.Printf("Dumping to %s\n", path)
+                        jsonBytes, err := json.MarshalIndent(result, "", "    ")
+                        if err != nil {
+                                fmt.Printf("Error Marshalling JSON: %v\n", err)
+                        }
+                        err = ioutil.WriteFile(path, jsonBytes, 0644)
+                        if err != nil {
+                                fmt.Printf("Error writing file: %v\n", err)
+                        }
+                }        
+               
         },
 }
 
@@ -130,7 +167,7 @@ func collectSQLDB(col azurecollector.AzureCollector, maxGoRoutines int, result m
 }
 
 func collectLDB(col azurecollector.AzureCollector, maxGoRoutines int, result map[string]interface{}) error {
-        instances, err := col.CollectLoadBalancers(maxGoRoutines)
+        instances, _, err := col.CollectLoadBalancers(maxGoRoutines)
         if err != nil {
                 fmt.Printf("Failed to gather load balancers Data: %v\n", err)
                 return err
@@ -140,8 +177,44 @@ func collectLDB(col azurecollector.AzureCollector, maxGoRoutines int, result map
         return nil
 }
 
+func collectVMSStats(col azurecollector.AzureCollector, maxGoRoutines int, resultStats map[string]interface{}) error {
+        
+        stats, err := col.CollectVMSCount(maxGoRoutines)
+        if err != nil {
+                fmt.Printf("Failed to gather VM Stats: %v\n", err)
+                return err
+        }
+        fmt.Printf("Gathered VM Stats across %d subscriptions\n", len(stats))
+        resultStats["vm"] = stats 
+        return nil
+}
+
+func collectSQLDBStats(col azurecollector.AzureCollector, maxGoRoutines int, resultStats map[string]interface{}) error {
+        stats, err := col.CollectSQLDBCount(maxGoRoutines)
+        if err != nil {
+                fmt.Printf("Failed to gather SQL database Stats: %v\n", err)
+                return err
+        }
+        fmt.Printf("Gathered SQL databases Stats across %d subscriptions\n", len(stats))
+        resultStats["sqldb"] = stats
+        return nil
+}
+
+func collectLDBStats(col azurecollector.AzureCollector, maxGoRoutines int, resultStats map[string]interface{}) error {
+       _, stats, err := col.CollectLoadBalancers(maxGoRoutines)
+        if err != nil {
+                fmt.Printf("Failed to gather load balancers Stats: %v\n", err)
+                return err
+        }
+        fmt.Printf("Gathered load balancers Stats across %d subscriptions\n", len(stats))
+        resultStats["loadbalancer"] = stats
+        return nil
+}
+
+
 func init() {
         dumpCmd.AddCommand(azureCmd)
         azureCmd.PersistentFlags().StringP("inputPath", "i", "", "file path to take subscriptionIDs as input")
-        azureCmd.PersistentFlags().IntVarP(&maxGoRoutines, "maxGoRoutines","m", -1, "customize maximum no.of Goroutines ")
+        azureCmd.PersistentFlags().BoolP("stats", "s", false, "dumps the stats of different resources for subscriptions")
+        azureCmd.PersistentFlags().IntP("maxGoRoutines","m", -1, "customize maximum no.of Goroutines ")
 }
