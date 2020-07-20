@@ -5,7 +5,6 @@ import (
         "fmt"
         "github.com/adobe/cloudinventory/azurelib"
         "github.com/Azure/azure-sdk-for-go/profiles/2019-03-01/network/mgmt/network"
-        "strconv"
         "sync"
         "time"
 )
@@ -32,8 +31,7 @@ func NewAzureCollectorUserDefined(subscriptionID []string) (AzureCollector, erro
         var col AzureCollector
         subID := make(map[string]string)
         for i := 0; i < len(subscriptionID); i++ {
-                s := strconv.Itoa(i)
-                subID["SubscriptionID "+s+" : "+subscriptionID[i]] = subscriptionID[i]
+                subID["subscription_id  : "+subscriptionID[i]] = subscriptionID[i]
         }
         col.SubscriptionMap = subID
         return col, nil
@@ -53,6 +51,7 @@ func (col *AzureCollector) GetSubscription(ctx context.Context) error {
 }
 
 // CollectVMS gathers all the Virtual Machines for each subscriptionID in an account level
+// Function takes no.of goroutines to be created from user as input
 func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib.VirtualMachineInfo, error) {
         subscriptionsMap := make(map[string][]*azurelib.VirtualMachineInfo)
         type subscriptionsVMS struct {
@@ -61,7 +60,7 @@ func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib
         }
         var chanCapacity int
 
-        if maxGoRoutines >= len(col.SubscriptionMap) {
+        if maxGoRoutines >= len(col.SubscriptionMap) || maxGoRoutines < 0 {
                 chanCapacity = len(col.SubscriptionMap)
         } else {
                 chanCapacity = maxGoRoutines
@@ -82,6 +81,10 @@ func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib
                                         errChan <- err
                                         return
                                 }
+                                // Ignore subscriptions with no instances
+                                if VMList == nil {
+                                        return
+                                }
                                 subscriptionsChan <- subscriptionsVMS{subscriptionName, VMList}
                         }(subscriptionName, subscriptionID, subscriptionsChan, errChan)
                         if subscriptionCount == chanCapacity-1 {
@@ -100,6 +103,11 @@ func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib
                         if err != nil {
                                 return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VM Data: %v", err))
                         }
+                        // Ignore subscriptions with no instances
+                        if VMList == nil {
+                                subscriptionCount++
+                                continue
+                        }
                         subscriptionsMap[subscriptionName] = VMList
                 }
                 subscriptionCount++
@@ -108,6 +116,7 @@ func (col *AzureCollector) CollectVMS(maxGoRoutines int) (map[string][]*azurelib
 }
 
 // CollectSQLDBs gathers SQL databases for each subscriptionID in an account level
+// Function takes no.of goroutines to be created from user as input
 func (col *AzureCollector) CollectSQLDBs(maxGoRoutines int) (map[string][]*azurelib.SQLDBInfo, error) {
         DBs := make(map[string][]*azurelib.SQLDBInfo)
         type DBsPerSubscriptionID struct {
@@ -116,7 +125,7 @@ func (col *AzureCollector) CollectSQLDBs(maxGoRoutines int) (map[string][]*azure
         }
         var chanCapacity int
 
-        if maxGoRoutines >= len(col.SubscriptionMap) {
+        if maxGoRoutines >= len(col.SubscriptionMap) || maxGoRoutines < 0 {
                 chanCapacity = len(col.SubscriptionMap)
         } else {
                 chanCapacity = maxGoRoutines
@@ -137,6 +146,7 @@ func (col *AzureCollector) CollectSQLDBs(maxGoRoutines int) (map[string][]*azure
                                         errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
                                         return
                                 }
+                                // Ignore subscriptions with no sql database instances
                                 if dbs == nil {
                                         return
                                 }
@@ -160,6 +170,11 @@ func (col *AzureCollector) CollectSQLDBs(maxGoRoutines int) (map[string][]*azure
                         if err != nil {
                                 return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQL databases Data: %v", err))
                         }
+                        // Ignore subscriptions with no  sql database instances
+                        if dbs == nil {
+                                subscriptionCount++
+                                continue
+                        }
                         DBs[subscriptionName] = dbs
                 }
                 subscriptionCount++
@@ -169,16 +184,18 @@ func (col *AzureCollector) CollectSQLDBs(maxGoRoutines int) (map[string][]*azure
 
 }
 
-// CollectLoadBalancers gathers Load Balancers for each subscriptionID in an account level
-func (col *AzureCollector) CollectLoadBalancers(maxGoRoutines int) (map[string][]*network.LoadBalancer, error) {
+// CollectLoadBalancers gathers Load Balancers stats and data for each subscriptionID in an account level
+// Function takes no.of goroutines to be created from user as input
+func (col *AzureCollector) CollectLoadBalancers(maxGoRoutines int) (map[string][]*network.LoadBalancer, map[string]int, error) {
         LDBs := make(map[string][]*network.LoadBalancer)
+        LDBCount := make(map[string]int)
         type LoadBalancersPerSubscriptionID struct {
                 SubscriptionName string
                 LdbList          []*network.LoadBalancer
         }
         var chanCapacity int
 
-        if maxGoRoutines >= len(col.SubscriptionMap) {
+        if maxGoRoutines >= len(col.SubscriptionMap) || maxGoRoutines < 0 {
                 chanCapacity = len(col.SubscriptionMap)
         } else {
                 chanCapacity = maxGoRoutines
@@ -199,6 +216,7 @@ func (col *AzureCollector) CollectLoadBalancers(maxGoRoutines int) (map[string][
                                         errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
                                         return
                                 }
+                                // Ignore subscriptions with no load balancer instances
                                 if ldbs == nil {
                                         return
                                 }
@@ -209,22 +227,160 @@ func (col *AzureCollector) CollectLoadBalancers(maxGoRoutines int) (map[string][
                                 close(ldbsChan)
                                 close(errChan)
                                 if len(errChan) > 0 {
-                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", <-errChan))
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", <-errChan))
                                 }
                                 for subscriptionLDBs := range ldbsChan {
                                         LDBs[subscriptionLDBs.SubscriptionName] = subscriptionLDBs.LdbList
+                                        LDBCount[subscriptionLDBs.SubscriptionName] = len(subscriptionLDBs.LdbList)
                                 }
                         }
                 } else {
                         ldbs, err := CollectLoadBalancersPerSubscriptionID(subID)
                         if err != nil {
-                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", err))
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", err))
+                        }
+                        // Ignore subscriptions with no load balancer instances
+                        if ldbs == nil {
+                                subscriptionCount++
+                                continue
                         }
                         LDBs[subscriptionName] = ldbs
+                        LDBCount[subscriptionName] = len(ldbs)
                 }
                 subscriptionCount++
         }
-        return LDBs, nil
+        return LDBs, LDBCount, nil
+}
+
+// CollectVMSCount gathers virtual machine stats for each subscriptionID in an account level
+// Function takes no.of goroutines to be created from user as input
+func (col *AzureCollector) CollectVMSCount(maxGoRoutines int) (map[string]int, error) {
+        subscriptionsStat := make(map[string]int)
+        type VMCountPerSubscriptionID struct {
+                SubscriptionName string
+                VMCount          int
+        }
+        var chanCapacity int
+
+        if maxGoRoutines >= len(col.SubscriptionMap) || maxGoRoutines < 0 {
+                chanCapacity = len(col.SubscriptionMap)
+        } else {
+                chanCapacity = maxGoRoutines
+        }
+        subscriptionCount := 0
+        subscriptionsChan := make(chan VMCountPerSubscriptionID, chanCapacity)
+        errChan := make(chan error, chanCapacity)
+
+        var wg sync.WaitGroup
+
+        for subscriptionName, subscriptionID := range col.SubscriptionMap {
+                if subscriptionCount < chanCapacity {
+                        wg.Add(1)
+                        go func(subscriptionName string, subscriptionID string, subscriptionsChan chan VMCountPerSubscriptionID, errChan chan error) {
+                                defer wg.Done()
+                                vmCount, err := azurelib.GetVMCount(subscriptionID)
+                                if err != nil {
+                                        errChan <- err
+                                        return
+                                }
+                                // Ignore subscriptions with no instances
+                                if vmCount == 0 {
+                                        return
+                                }
+                                subscriptionsChan <- VMCountPerSubscriptionID{subscriptionName, vmCount}
+                        }(subscriptionName, subscriptionID, subscriptionsChan, errChan)
+                        if subscriptionCount == chanCapacity-1 {
+                                wg.Wait()
+                                close(subscriptionsChan)
+                                close(errChan)
+                                if len(errChan) > 0 {
+                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VM Count: %v", <-errChan))
+                                }
+                                for subsVMS := range subscriptionsChan {
+                                        subscriptionsStat[subsVMS.SubscriptionName] = subsVMS.VMCount
+                                }
+                        }
+                } else {
+                        vmCount, err := azurelib.GetVMCount(subscriptionID)
+                        if err != nil {
+                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather VM Count: %v", err))
+                        }
+                        // Ignore subscriptions with no instances
+                        if vmCount == 0 {
+                                subscriptionCount++
+                                continue
+                        }
+                        subscriptionsStat[subscriptionName] = vmCount
+                }
+                subscriptionCount++
+        }
+        return subscriptionsStat, nil
+}
+
+// CollectSQLDBCount gathers sql databases stats for each subscriptionID in an account level
+// Function takes no.of goroutines to be created from user as input
+func (col *AzureCollector) CollectSQLDBCount(maxGoRoutines int) (map[string]int, error) {
+        subscriptionsStat := make(map[string]int)
+        type SQLDBCountPerSubscriptionID struct {
+                SubscriptionName string
+                SQLDBCount       int
+        }
+
+        var chanCapacity int
+
+        if maxGoRoutines >= len(col.SubscriptionMap) || maxGoRoutines < 0 {
+                chanCapacity = len(col.SubscriptionMap)
+        } else {
+                chanCapacity = maxGoRoutines
+        }
+        subscriptionCount := 0
+        subscriptionsChan := make(chan SQLDBCountPerSubscriptionID, chanCapacity)
+        errChan := make(chan error, chanCapacity)
+
+        var wg sync.WaitGroup
+        for subscriptionName, subscriptionID := range col.SubscriptionMap {
+                if subscriptionCount < chanCapacity {
+                        wg.Add(1)
+                        go func(subscriptionName string, subscriptionID string, subscriptionsChan chan SQLDBCountPerSubscriptionID, errChan chan error) {
+                                defer wg.Done()
+                                sqldbCount, err := azurelib.GetSQLDBCount(subscriptionID)
+                                if err != nil {
+                                        errChan <- err
+                                        return
+                                }
+                                // Ignore subscriptions with no sqldatabase instances
+                                if sqldbCount == 0 {
+                                        return
+                                }
+                                subscriptionsChan <- SQLDBCountPerSubscriptionID{subscriptionName, sqldbCount}
+                        }(subscriptionName, subscriptionID, subscriptionsChan, errChan)
+                        if subscriptionCount == chanCapacity-1 {
+                                wg.Wait()
+                                close(subscriptionsChan)
+                                close(errChan)
+                                if len(errChan) > 0 {
+                                        return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQLDB Count: %v", <-errChan))
+                                }
+                                for subsVMS := range subscriptionsChan {
+                                        subscriptionsStat[subsVMS.SubscriptionName] = subsVMS.SQLDBCount
+                                }
+                        }
+                } else {
+                        sqldbCount, err := azurelib.GetSQLDBCount(subscriptionID)
+                        if err != nil {
+                                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather SQLDB Count: %v", err))
+                        }
+                        // Ignore subscriptions with no sql database instances
+                        if sqldbCount == 0 {
+                                subscriptionCount++
+                                continue
+                        }
+                        subscriptionsStat[subscriptionName] = sqldbCount
+                }
+                subscriptionCount++
+        }
+
+        return subscriptionsStat, nil
 }
 // CollectLoadBalancersPerSubscriptionID returns a slice of Load Balancers for a given subscriptionID
 func CollectLoadBalancersPerSubscriptionID(subscriptionID string) ([]*network.LoadBalancer, error) {
