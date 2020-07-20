@@ -11,7 +11,7 @@ func TestCollectVirtualNetworks(t *testing.T) {
         if err != nil {
                 t.Errorf("Failed to create collector: %v", err)
         }
-        _, err = col.CollectVirtualNetworks()
+        _, _, err = col.CollectVirtualNetworks()
         if err != nil {
                 t.Errorf("Failed to collect Virtual networks: %v", err)
         }
