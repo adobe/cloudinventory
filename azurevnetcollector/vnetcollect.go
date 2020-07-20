@@ -5,7 +5,6 @@ import (
         "fmt"
         "github.com/adobe/cloudinventory/azurenetwork"
         "github.com/Azure/azure-sdk-for-go/profiles/2019-03-01/network/mgmt/network"
-        "strconv"
         "sync"
         "time"
 )
@@ -32,8 +31,7 @@ func NewAzureCollectorUserDefined(subscriptionID []string) (AzureCollector, erro
         var col AzureCollector
         subID := make(map[string]string)
         for i := 0; i < len(subscriptionID); i++ {
-                s := strconv.Itoa(i)
-                subID["SubscriptionID "+s+" : "+subscriptionID[i]] = subscriptionID[i]
+                subID["subscription_id :"+subscriptionID[i]] = subscriptionID[i]
         }
         col.SubscriptionMap = subID
         return col, nil
@@ -52,41 +50,69 @@ func (col *AzureCollector) GetSubscription(ctx context.Context) error {
 
 }
 
-// CollectVirtualNetworks gathers Virtual Networks for each subscriptionID in an account level
-func (col *AzureCollector) CollectVirtualNetworks() (map[string][]*network.VirtualNetwork, error) {
+// CollectVirtualNetworks gathers Virtual Networks stats and data for each subscriptionID in an account level
+// Function takes no.of goroutines to be created from user as input
+func (col *AzureCollector) CollectVirtualNetworks(maxGoRoutines int) (map[string][]*network.VirtualNetwork, map[string]int, error) {
         VNet := make(map[string][]*network.VirtualNetwork)
+        VNetCount := make(map[string]int)
         type VirtualNetworksPerSubscriptionID struct {
                 SubscriptionName string
                 VnetList         []*network.VirtualNetwork
         }
-        vnetsChan := make(chan VirtualNetworksPerSubscriptionID, len(col.SubscriptionMap))
-        errChan := make(chan error, len(col.SubscriptionMap))
+        var chanCapacity int
+
+        if maxGoRoutines >= len(col.SubscriptionMap) || maxGoRoutines < 0 {
+                chanCapacity = len(col.SubscriptionMap)
+        } else {
+                chanCapacity = maxGoRoutines
+        }
+        subscriptionCount := 0
+        vnetsChan := make(chan VirtualNetworksPerSubscriptionID, chanCapacity)
+        errChan := make(chan error, chanCapacity)
         var wg sync.WaitGroup
         for subscriptionName, subID := range col.SubscriptionMap {
-                wg.Add(1)
-                go func(subID string, subscriptionName string, vnetsChan chan VirtualNetworksPerSubscriptionID, errChan chan error) {
-                        defer wg.Done()
+                if subscriptionCount < chanCapacity {
+                        wg.Add(1)
+                        go func(subID string, subscriptionName string, vnetsChan chan VirtualNetworksPerSubscriptionID, errChan chan error) {
+                                defer wg.Done()
+                                vnets, err := CollectVirtualNetworksPerSubscriptionID(subID)
+                                if err != nil {
+                                        errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
+                                        return
+                                }
+                                if vnets == nil {
+                                        return
+                                }
+                                vnetsChan <- VirtualNetworksPerSubscriptionID{subscriptionName, vnets}
+                        }(subID, subscriptionName, vnetsChan, errChan)
+                        if subscriptionCount == chanCapacity-1 {
+                                wg.Wait()
+                                close(vnetsChan)
+                                close(errChan)
+                                if len(errChan) > 0 {
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather virtual network data: %v", <-errChan))
+                                }
+                                for subscriptionVnets := range vnetsChan {
+                                        VNet[subscriptionVnets.SubscriptionName] = subscriptionVnets.VnetList
+                                        VNetCount[subscriptionVnets.SubscriptionName] = len(subscriptionVnets.VnetList)
+                                }
+                        }
+                } else {
                         vnets, err := CollectVirtualNetworksPerSubscriptionID(subID)
                         if err != nil {
-                                errChan <- fmt.Errorf(fmt.Sprintf("Error while gathering %s: %v", subscriptionName, err))
-                                return
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather virtual network data: %v", err))
                         }
                         if vnets == nil {
-                                return
+                                subscriptionCount++
+                                continue
                         }
-                        vnetsChan <- VirtualNetworksPerSubscriptionID{subscriptionName, vnets}
-                }(subID, subscriptionName, vnetsChan, errChan)
+                        VNet[subscriptionName] = vnets
+                        VNetCount[subscriptionName] = len(vnets)
+                }
+                subscriptionCount++
         }
-        wg.Wait()
-        close(vnetsChan)
-        close(errChan)
-        if len(errChan) > 0 {
-                return nil, fmt.Errorf(fmt.Sprintf("Failed to gather load balancers Data: %v", <-errChan))
-        }
-        for subscriptionVnets := range vnetsChan {
-                VNet[subscriptionVnets.SubscriptionName] = subscriptionVnets.VnetList
-        }
-        return VNet, nil
+
+        return VNet, VNetCount, nil
 }
 
 // CollectVirtualNetworksPerSubscriptionID returns a slice of virtual networks for a given subscriptionID
