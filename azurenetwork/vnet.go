@@ -2,7 +2,7 @@ package azurenetwork
 
 import (
         "context"
-        "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2017-10-01/network"
+        "github.com/Azure/azure-sdk-for-go/profiles/2019-03-01/network/mgmt/network"
         "github.com/Azure/go-autorest/autorest/azure/auth"
         "time"
 )
