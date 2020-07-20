@@ -106,7 +106,7 @@ func getVMDetails(ctx context.Context, client Clients, vm compute.VirtualMachine
         return &vmInfo
 }
 
-// GetAllVMS function returns list of virtual machines
+// GetAllVMS function returns list of virtual machines for a subscriptionID
 func GetAllVMS(client Clients) (VMList []*VirtualMachineInfo, err error) {
         ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
         defer cancel()
@@ -143,6 +143,30 @@ func GetAllVMS(client Clients) (VMList []*VirtualMachineInfo, err error) {
 
         }
         return
+}
+
+// GetVMCount function returns stats of virtual machines for a subscriptionID
+func GetVMCount(subscriptionID string)(int, error) {
+        var vmCount int
+        authorizer, err := auth.NewAuthorizerFromEnvironment()
+        if err != nil {
+                return vmCount, err
+        }
+        ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+        defer cancel()
+        vmClient := compute.NewVirtualMachinesClient(subscriptionID)
+        vmClient.Authorizer = authorizer
+        result, err := vmClient.ListAllComplete(ctx)
+        if err != nil {
+                return vmCount, err
+        }
+        for result.NotDone(){
+                vmCount++
+                if err = result.Next(); err != nil {
+                        return vmCount, err
+                }
+        }
+        return vmCount, nil
 }
 
 // GetVMResourceGroup function returns resourcegroup to which the virtual machine belongs to
