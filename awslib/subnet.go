@@ -10,21 +10,23 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-package cmd
+package awslib
 
 import (
-	"github.com/spf13/cobra"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-// dumpCmd represents the dump command
-var dumpCmd = &cobra.Command{
-	Use:   "dump",
-	Short: "Dumps the inventory for the given options",
-}
-
-func init() {
-	rootCmd.AddCommand(dumpCmd)
-	dumpCmd.PersistentFlags().StringP("filter", "f", "", "limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer/cloudfront/vpc/subnets")
-	dumpCmd.PersistentFlags().StringP("path", "p", "cloudinventory.json", "file path to dump the inventory in")
-
+// GetAllSubnetInstances returns a complete list of instances for a given session 
+// Needs to get updated with the latest aws-sdk-go version
+func GetAllSubnetInstances(sess *session.Session) ([]*ec2.Subnet, error) {
+	ec2c := ec2.New(sess)
+	var allInstances []*ec2.Subnet
+	input := ec2.DescribeSubnetsInput{}
+	result, err := ec2c.DescribeSubnets(&input)
+	if err != nil {
+		return allInstances, err
+	}
+	allInstances = result.Subnets	
+	return allInstances, nil
 }
