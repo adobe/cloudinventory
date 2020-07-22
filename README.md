@@ -11,6 +11,7 @@ Current supported:
   - Virtual Machine
   - SQL Databases
   - Load Balancers
+  - CDN
 
 (PRs welcome for more!)
 
@@ -62,17 +63,19 @@ Example for Azure:
 
 ```bash
 cloudinventory dump azure -h
-Dump Azure inventory. Currently supports Virtual Machines/SQL databases/Load balancers
+Dump Azure inventory. Currently supports Virtual Machines/SQL databases/Load balancers/CDN
 
 Usage:
   cloudinventory dump azure [flags]
 
 Flags:
-  -h, --help               help for azure
-  -i, --inputPath string   file path to take subscriptionIDs as input
+  -h, --help                help for azure
+  -i, --inputPath string    file path to take subscriptionIDs as input
+  -m, --maxGoRoutines int   customize maximum no.of Goroutines  (default -1)
+  -s, --stats               dumps the stats of different resources for subscriptions
 
 Global Flags:
-  -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer for aws and vm/sqldb/loadbalancer for azure
+  -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer for aws and vm/sqldb/loadbalancer/cdn for azure
   -p, --path string     file path to dump the inventory in (default "cloudinventory.json")
 ```
 
