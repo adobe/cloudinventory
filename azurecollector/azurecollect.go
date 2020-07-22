@@ -5,6 +5,7 @@ import (
         "fmt"
         "github.com/adobe/cloudinventory/azurelib"
         "github.com/Azure/azure-sdk-for-go/profiles/2019-03-01/network/mgmt/network"
+	"github.com/Azure/azure-sdk-for-go/services/cdn/mgmt/2019-04-15/cdn"
         "sync"
         "time"
 )
@@ -182,6 +183,74 @@ func (col *AzureCollector) CollectSQLDBs(maxGoRoutines int) (map[string][]*azure
 
         return DBs, nil
 
+}
+
+// CollectCDN gathers information and stats of CDN for each subscriptionID in an account level
+// Function takes no.of goroutines to be created from user as input
+func (col *AzureCollector) CollectCDN(maxGoRoutines int) (map[string][]*cdn.Endpoint, map[string]int, error) {
+        subscriptionsMap := make(map[string][]*cdn.Endpoint)
+        CDNCount := make(map[string]int)
+        type subscriptionsCDN struct {
+                subscriptionName string
+                CDNList           []*cdn.Endpoint
+        }
+        var chanCapacity int
+
+        if maxGoRoutines >= len(col.SubscriptionMap) || maxGoRoutines < 0 {
+                chanCapacity = len(col.SubscriptionMap)
+        } else {
+                chanCapacity = maxGoRoutines
+        }
+        subscriptionCount := 0
+        subscriptionsChan := make(chan subscriptionsCDN, chanCapacity)
+        errChan := make(chan error, chanCapacity)
+
+        var wg sync.WaitGroup
+
+        for subscriptionName, subscriptionID := range col.SubscriptionMap {
+                if subscriptionCount < chanCapacity {
+                        wg.Add(1)
+                        go func(subscriptionName string, subscriptionID string, subscriptionsChan chan subscriptionsCDN, errChan chan error) {
+                                defer wg.Done()
+                                CDNList, err := CollectCDNPerSubscriptionID(subscriptionID)
+                                if err != nil {
+                                        errChan <- err
+                                        return
+                                }
+                                // Ignore subscriptions with no instances
+                                if CDNList == nil {
+                                        return
+                                }
+                                subscriptionsChan <- subscriptionsCDN{subscriptionName, CDNList}
+                        }(subscriptionName, subscriptionID, subscriptionsChan, errChan)
+                        if subscriptionCount == chanCapacity-1 {
+                                wg.Wait()
+                                close(subscriptionsChan)
+                                close(errChan)
+                                if len(errChan) > 0 {
+                                        return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather CDN Data: %v", <-errChan))
+                                }
+                                for subsCDN := range subscriptionsChan {
+                                        subscriptionsMap[subsCDN.subscriptionName] = subsCDN.CDNList
+                                        CDNCount[subsCDN.subscriptionName] = len(subsCDN.CDNList)
+                                }
+                        }
+                } else {
+                        CDNList, err := CollectCDNPerSubscriptionID(subscriptionID)
+                        if err != nil {
+                                return nil, nil, fmt.Errorf(fmt.Sprintf("Failed to gather CDN Data: %v", err))
+                        }
+                        // Ignore subscriptions with no instances
+                        if CDNList == nil {
+                                subscriptionCount++
+                                continue
+                        }
+                        subscriptionsMap[subscriptionName] = CDNList
+                        CDNCount[subscriptionName] =len(CDNList)
+                }
+                subscriptionCount++
+        }
+        return subscriptionsMap, CDNCount, nil
 }
 
 // CollectLoadBalancers gathers Load Balancers stats and data for each subscriptionID in an account level
@@ -393,6 +462,13 @@ func CollectSQLDBsPerSubscriptionID(subscriptionID string) ([]*azurelib.SQLDBInf
 
         dblist, err := azurelib.GetAllSQLDBs(subscriptionID)
         return dblist, err
+}
+
+// CollectCDNPerSubscriptionID returns a slice of CDN for a given subscriptionID
+func CollectCDNPerSubscriptionID(subscriptionID string) ([]*cdn.Endpoint, error) {
+
+        cdnList, err := azurelib.GetAllCDN(subscriptionID)
+        return cdnList, err
 }
 
 // CollectVMsPerSubscriptionID returns a slice of VirtualMachineInfo for a given subscriptionID
