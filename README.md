@@ -1,6 +1,6 @@
 # Cloud Inventory Gatherer
 
-This package attempts to collect inventory of used services and resources across multiple clouds. It primarily wraps around the excellend SDKs already available but adds helper methods to aid in creation of inventories.
+This package attempts to collect inventory of used services and resources across multiple clouds. It primarily wraps around the excellent SDKs already available but adds helper methods to aid in creation of inventories.
 Current supported:
 
 - AWS
@@ -39,7 +39,7 @@ Example for AWS:
 
 ```bash
 cloudinventory dump aws -h
-Dump AWS inventory. Currently supports EC2/RDS
+Dump AWS inventory. Currently supports EC2/RDS/Route53/LoadBalancers/CloudFront/Vpc/Subnets
 
 Usage:
   cloudinventory dump aws [flags]
@@ -50,9 +50,12 @@ Flags:
       --ansible_private      Create Ansible Inventory with private DNS instead of public
   -h, --help                 help for aws
   -i, --inputPath string     file path to take user input
+  -m, --maxGoRoutines int    customize maximum no.of Goroutines  (default -1)
       --partition string     Which partition of AWS to run for default/china (default "default")
+  -s, --stats                dumps the stats of different resources for regions
+
 Global Flags:
-  -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds
+  -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer/cloudfront/vpc/subnets
   -p, --path string     file path to dump the inventory in (default "cloudinventory.json")
 ```
 
