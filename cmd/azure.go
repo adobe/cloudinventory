@@ -12,7 +12,7 @@ import (
 // azureCmd represents the azure command
 var azureCmd = &cobra.Command{
         Use:   "azure",
-        Short: "Dump Azure inventory. Currently supports Virtual Machines/SQL databases/Load balancers",
+        Short: "Dump Azure inventory. Currently supports Virtual Machines/SQL databases/Load balancers/CDN",
         Run: func(cmd *cobra.Command, args []string) {
                 path := cmd.Flag("path").Value.String()
                 filter := cmd.Flag("filter").Value.String()
@@ -67,6 +67,11 @@ var azureCmd = &cobra.Command{
                                 if err != nil {
                                         return
                                 }
+                        case "cdn":
+                                err := collectCDNStats(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
                         default:
                                 err := collectVMSStats(col, maxGoRoutines, result)
                                 if err != nil {
@@ -105,6 +110,11 @@ var azureCmd = &cobra.Command{
                                 if err != nil {
                                         return
                                 }
+                        case "cdn":
+                                err := collectCDN(col, maxGoRoutines, result)
+                                if err != nil {
+                                        return
+                                }
                         default:
                                 err := collectVMS(col, maxGoRoutines, result)
                                 if err != nil {
@@ -123,7 +133,8 @@ var azureCmd = &cobra.Command{
                         err = ioutil.WriteFile(path, jsonBytes, 0644)
                         if err != nil {
                                 fmt.Printf("Error writing file: %v\n", err)
-                        }
+                        }     
+                        
                 }        
                
         },
@@ -134,6 +145,7 @@ func validateAzureFilter(filter string) bool {
                 "vm",
                 "sqldb",
                 "loadbalancer",
+                "cdn",
                 "",
         }
         for _, service := range validSlice {
@@ -177,6 +189,17 @@ func collectLDB(col azurecollector.AzureCollector, maxGoRoutines int, result map
         return nil
 }
 
+func collectCDN(col azurecollector.AzureCollector, maxGoRoutines int, result map[string]interface{}) error {
+        instances, _, err := col.CollectCDN(maxGoRoutines)
+        if err != nil {
+                fmt.Printf("Failed to gather CDN Data: %v\n", err)
+                return err
+        }
+        fmt.Printf("Gathered CDN across %d subscriptions\n", len(instances))
+        result["cdn"] = instances
+        return nil
+}
+
 func collectVMSStats(col azurecollector.AzureCollector, maxGoRoutines int, resultStats map[string]interface{}) error {
         
         stats, err := col.CollectVMSCount(maxGoRoutines)
@@ -211,6 +234,16 @@ func collectLDBStats(col azurecollector.AzureCollector, maxGoRoutines int, resul
         return nil
 }
 
+func collectCDNStats(col azurecollector.AzureCollector, maxGoRoutines int, resultStats map[string]interface{}) error {
+        _, stats, err := col.CollectCDN(maxGoRoutines)
+         if err != nil {
+                 fmt.Printf("Failed to gather CDN Stats: %v\n", err)
+                 return err
+         }
+         fmt.Printf("Gathered CDN Stats across %d subscriptions\n", len(stats))
+         resultStats["cdn"] = stats
+         return nil
+ }
 
 func init() {
         dumpCmd.AddCommand(azureCmd)
