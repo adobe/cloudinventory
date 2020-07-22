@@ -66,8 +66,10 @@ Usage:
   cloudinventory dump azurevnet [flags]
 
 Flags:
-  -h, --help               help for azurevnet
-  -i, --inputPath string   file path to take subscriptionIDs as input
+  -h, --help                help for azurevnet
+  -i, --input_Path string   file path to take subscriptionIDs as input
+  -m, --maxGoRoutines int   customize maximum no.of Goroutines  (default -1)
+  -s, --stats               dumps the stats of different resources for subscriptions
 
 Global Flags:
   -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer in aws and virtual networks in azure
