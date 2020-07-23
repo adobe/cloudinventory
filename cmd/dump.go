@@ -24,7 +24,7 @@ var dumpCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(dumpCmd)
-	dumpCmd.PersistentFlags().StringP("filter", "f", "", "limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer")
+	dumpCmd.PersistentFlags().StringP("filter", "f", "", "limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer for aws and vm/sqldb/loadbalancer/cdn for azure")
 	dumpCmd.PersistentFlags().StringP("path", "p", "cloudinventory.json", "file path to dump the inventory in")
 
 }

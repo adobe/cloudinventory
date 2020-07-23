@@ -7,6 +7,11 @@ Current supported:
   - EC2
   - RDS
   - ELB
+- Azure
+  - Virtual Machine
+  - SQL Databases
+  - Load Balancers
+  - CDN
 
 (PRs welcome for more!)
 
@@ -32,6 +37,7 @@ Use "cloudinventory [command] --help" for more information about a command.
 ```
 
 The subcommands all have additional options which be found by doing a `-h`
+
 Example for AWS:
 
 ```bash
@@ -53,9 +59,31 @@ Global Flags:
   -p, --path string     file path to dump the inventory in (default "cloudinventory.json")
 ```
 
+Example for Azure:
+
+```bash
+cloudinventory dump azure -h
+Dump Azure inventory. Currently supports Virtual Machines/SQL databases/Load balancers/CDN
+
+Usage:
+  cloudinventory dump azure [flags]
+
+Flags:
+  -h, --help                help for azure
+  -i, --inputPath string    file path to take subscriptionIDs as input
+  -m, --maxGoRoutines int   customize maximum no.of Goroutines  (default -1)
+  -s, --stats               dumps the stats of different resources for subscriptions
+
+Global Flags:
+  -f, --filter string   limit dump to a particular cloud service, e.g ec2/rds/route53/loadbalancer for aws and vm/sqldb/loadbalancer/cdn for azure
+  -p, --path string     file path to dump the inventory in (default "cloudinventory.json")
+```
+
 The tool reads credentials from your environment.
 
 For AWS see: <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html>
+
+For Azure see: <https://github.com/Azure/azure-sdk-for-go#more-authentication-details>
 
 ## Library Use
 
